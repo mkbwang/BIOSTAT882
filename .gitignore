@@ -1,4 +1,11 @@
 *.Rproj
 *.Rproj.user/
 class_notes/
-
+*.tex
+*.aux
+*.log
+*.out
+*.pdf
+*.gz
+*.Rhistory
+.Rproj.user
