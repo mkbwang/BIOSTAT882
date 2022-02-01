@@ -1,7 +1,6 @@
 *.Rproj
 *.Rproj.user/
 class_notes/
-*.tex
 *.aux
 *.log
 *.out

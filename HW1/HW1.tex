@@ -1,0 +1,120 @@
+\documentclass[12pt]{article}
+\usepackage{paralist,amsmath,amssymb,thumbpdf,lmodern}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{physics}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{diagbox}
+\usepackage{caption}
+\usepackage{bm}
+\usepackage{makecell}
+\usepackage{ifxetex,ifluatex}
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname IncludeInRelease\endcsname\relax
+  \usepackage{fixltx2e}
+\fi
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\usepackage{newtxtext,newtxmath}
+
+\title{Biostat 882 HW1}
+\date{}
+\author{Mukai Wang 98830336}
+
+
+\usepackage{Sweave}
+\begin{document}
+\maketitle
+
+
+\section*{Problem 1}
+
+
+
+\section*{Problem 2}
+
+
+\section*{Problem 3}
+
+\begin{algorithm}
+	\caption{Random Walk Markov Chain}\label{RWMC}
+	\hspace*{\algorithmicindent} \textbf{Input} $X_0$
+	\begin{algorithmic}[1]
+		\For{$j \gets 1$ to $ 10000$}
+		\State $\delta_{j-1} \sim \text{Bernoulli}(0.5)$
+		\If{$\delta_{j-1} = 0$}
+			\State $X_j \sim N(X_{j-1}, 1)$
+		\Else
+			\State $\eta_{j-1} \sim \text{Bernoulli}(0.5)$
+			\State $X_j \gets X_{j-1} + 2\eta_{j-1} - 1$
+		\EndIf
+		\EndFor
+	\end{algorithmic}
+	\hspace*{\algorithmicindent} \textbf{Output} $\begin{bmatrix}X_0 & X_1 & \cdots &X_{10000} \end{bmatrix}$
+\end{algorithm}
+
+
+\section*{Problem 5}
+ For $\bm{\mu} = \begin{bmatrix}\mu_1 & \mu_2\end{bmatrix}^\top$, We have 
+ \[ \pi (\bm{\mu}) = \frac{1}{\sqrt{2\pi}} \exp\left( -\mu_1^2/2\right)\cdot \frac{1}{\sqrt{0.002\pi}}\exp\left( -500\mu_2^2\right)\cdot \prod_{j=1}^{100}\frac{1}{\sqrt{2\pi}} \exp \left(-(Y_j - \mu_1 - \mu_2)^2 / 2 \right)  \] 
+Therefore
+\[ \nabla \log \pi(\bm{\mu}) = \begin{pmatrix}
+	-\mu_1 - \sum_{j=1}^{100}(Y_j - \mu_1 - \mu_2) \\
+	-1000 \mu_2 - \sum_{j=1}^{100}(Y_j - \mu_1 - \mu_2)
+ \end{pmatrix} \]
+
+Based on the derivations above, we can set up the Langevin diffusion algorithm with scaling factor tuning.
+
+\begin{algorithm}
+	\caption{Langevin Diffusion}
+	\hspace*{\algorithmicindent} \textbf{Input}  $\{Y_1, Y_2, \cdots, Y_n \}$, Chain Length $N$, initial scaling factor $\sigma_0^2$, scaling factor update period $T$ 
+	\begin{algorithmic}[1]
+		\State $\bm{\mu}_0 \gets \begin{bmatrix}5 & 5\end{bmatrix}^\top$
+		\State $\sigma^2 \gets \sigma_0^2$
+		\State $A \gets 0$ \Comment{Counter of acceptance in recent iterations}
+		\For{$i\gets 0 $ to $ N-1$}
+		\State $Z\sim N\left(\begin{pmatrix}0 \\ 0\end{pmatrix}, \begin{pmatrix}1 & 0 \\ 0 & 1\end{pmatrix} \right)$
+		\State $\bm{\mu}' \gets \bm{\mu}_i + \sigma^2 \nabla \log \pi(\bm{\mu}_i)/2 + \sigma Z$
+		\State $U\sim \text{Uniform}(0, 1)$
+		\If{$U < \min \left(1, \frac{\pi(\bm{\mu}') \cdot \exp (-\lVert\bm{\mu}'-\bm{\mu}_i-\sigma^2\nabla \log \pi(\bm{\mu}_i)/2 \rVert^2 / 2\sigma^2)}{\pi(\bm{\mu}_i) \cdot \exp (-\lVert\bm{\mu}_i-\bm{\mu}'-\sigma^2\nabla \log \pi(\bm{\mu}')/2 \rVert^2 /2\sigma^2)}\right)$}
+		\State $A\gets A+1$
+		\State $\bm{\mu}_{i+1}\gets \bm{\mu}'$
+		\Else
+		\State $\bm{\mu}_{i+1}\gets \bm{\mu}_{i}$
+		\EndIf
+		
+		\If{ $i+1$ mod $T$ =0} \Comment{Update $\sigma^2$}
+			\State $r\gets 1+(A/T - 0.574)^3 \cdot 1000$
+			\State $A\gets 0$
+			\If{$r>1.1$}
+				\State $\sigma^2 \gets 1.1\sigma^2$
+			\ElsIf{$r<0.9$}
+				\State $\sigma^2 \gets 0.9\sigma^2$
+			\Else
+				\State $\sigma^2 \gets r \sigma^2$
+			\EndIf
+		\EndIf
+		\EndFor
+	\end{algorithmic}
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\mu}_0, \bm{\mu}_1, \cdots, \bm{\mu}_N \}$
+\end{algorithm}
+\end{document}
