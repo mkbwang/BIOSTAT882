@@ -72,6 +72,39 @@
 	\hspace*{\algorithmicindent} \textbf{Output} $\begin{bmatrix}X_0 & X_1 & \cdots &X_{10000} \end{bmatrix}$
 \end{algorithm}
 
+\begin{algorithm}
+	\caption{Estimate M Step Transition}\label{mstepest}
+	\hspace*{\algorithmicindent} \textbf{Input} Sample Chain $\{Y_0, Y_1, \cdots Y_n \}$, Starting value $x$, Step Size $m$
+	\begin{algorithmic}[1]
+		\For{$j \gets 0$ to $n-m$}
+		\State $X_j \gets x + Y_{j+m} - Y_{j}$
+		\EndFor
+	\end{algorithmic}
+	\hspace*{\algorithmicindent} \textbf{Output} $\{X_0, X_1, \cdots X_{n-m} \}$
+\end{algorithm}
+
+\section*{Problem 4}
+
+\begin{algorithm}
+	\caption{Independent Metropolis-Hastings}\label{IMH}
+	\hspace*{\algorithmicindent} \textbf{Input} Number of Chains $K$, Chain Length $N$, Target Rate $R_{t}$, Proposal Rate $R_{p}$
+	\begin{algorithmic}[1]
+		\For{$i \gets 1$ to $K$}
+			\State $X_{i,0} \sim \text{Uniform}(R_t/2, 2R_t)$
+			\For{$j \gets 0$ to $N-1$}
+			\State $Y \sim \exp (R_p)$
+			\State $U \sim \text{Uniform}(0, 1)$
+			\If{$U < \min \left(1, \exp(-YR_t - X_{i,j}R_p + X_{i,j}R_t+YR_p)\right)$}
+			\State $X_{i,j+1}\gets Y$
+			\Else
+			\State $X_{i,j+1}\gets X_{i,j}$
+			\EndIf
+			\EndFor
+		\EndFor
+	\end{algorithmic}
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ X_{i,j}\}$, $i=1,2,\cdots K$, $j=1,2,\cdots N$
+\end{algorithm}
+
 
 \section*{Problem 5}
  For $\bm{\mu} = \begin{bmatrix}\mu_1 & \mu_2\end{bmatrix}^\top$, We have 

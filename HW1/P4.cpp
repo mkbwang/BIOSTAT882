@@ -5,7 +5,7 @@ using namespace Rcpp;
 // [[Rcpp::export]]
 NumericMatrix MH4(int run, int chain, double target, double proposal) {
   NumericMatrix allruns(run, chain+1); // store all the output values
-  NumericVector currentstate = Rcpp::runif(run, 0.5, 1.5); // all runs start from 
+  NumericVector currentstate = Rcpp::runif(run, target/2, target*2); // all runs start from 
   allruns(_, 0) = currentstate;
   for (int chainid=0; chainid < chain; chainid++){
     currentstate = allruns(_, chainid);// current state values for all runs
