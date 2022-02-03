@@ -4,6 +4,7 @@ class_notes/
 *.aux
 *.log
 *.out
+*.eps
 *.pdf
 *.gz
 *.Rhistory
