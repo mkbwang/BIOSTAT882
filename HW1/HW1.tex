@@ -6,13 +6,20 @@
 \usepackage{graphicx}
 \usepackage{enumerate}
 \usepackage{physics}
+\usepackage{amsfonts}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{graphicx}
 \usepackage{multirow}
+\usepackage{amsfonts}
 \usepackage{booktabs}
 \usepackage{diagbox}
+\usepackage[outdir=./]{epstopdf}
 \usepackage{caption}
 \usepackage{bm}
 \usepackage{makecell}
 \usepackage{ifxetex,ifluatex}
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
 \begingroup\expandafter\expandafter\expandafter\endgroup
 \expandafter\ifx\csname IncludeInRelease\endcsname\relax
   \usepackage{fixltx2e}
@@ -48,29 +55,64 @@
 
 \section*{Problem 1}
 
+Given a number $c>0$, I can construct a function
+\[\nu_1(\diff X_{n+1}) = \frac{1}{\sqrt{2\pi}} \exp (-\frac{X_{n+1}^2+c^2}{2})\diff X_{n+1} \]
 
-
+for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1})$,
+ $\forall X_{n+1} \in \mathbb{R}_{+}$ and $X_n \in (0, c)$. This is because
+ $$K(X_n, X_{n+1}) = \begin{cases}
+ 	\int_{-\infty}^{X_n}\frac{1}{\sqrt{2\pi}} \exp(-x^2 /2)\diff x \qquad X_{n+1} = 0\\
+ 	\frac{1}{\sqrt{2\pi}} \exp(-(X_{n+1}-X_n)^2/2)\diff X_{n+1}\qquad X_{n+1} > 0
+ \end{cases}
+  $$
+  
+  When $X_{n+1} > 0$, 
+  \[ \frac{\nu_1(\diff X_{n+1})}{K(X_n, X_{n+1})} = \exp(-X_{n+1}X_n - c^2/2 + X_{n}^2/2) < 1\]
+  Thus $(0, c)$ is a small set for any $c>0$.
 \section*{Problem 2}
-
+ $\{X_n \}_{n=0}^{\infty}$ is not irreducible because for $X_n=0$ all the following chain will have to be zero, i.e. $X_{n+1} = X_{n+2} =\cdots =0$
+ Thus $K^n (0, A) = 0 \quad \forall A\in (0, +\infty)$. Therefore $\{X_n \}_{n=0}^{\infty}$ is not irreducible.
 
 \section*{Problem 3}
 
-\begin{algorithm}
-	\caption{Random Walk Markov Chain}\label{RWMC}
-	\hspace*{\algorithmicindent} \textbf{Input} $X_0$
-	\begin{algorithmic}[1]
-		\For{$j \gets 1$ to $ 10000$}
-		\State $\delta_{j-1} \sim \text{Bernoulli}(0.5)$
-		\If{$\delta_{j-1} = 0$}
+\begin{enumerate}[(a)]
+	\item According to definition, $X_{n+1} - X_{n} = \delta_n \eta_n + (1-\delta_n) \epsilon_n$ and all of $\delta_n$, $\eta_n$ and $\epsilon_n$ are generated independently of current state value. This defines the Markov chain to be a random walk.
+	
+	\item The algorithm implementation is detailed in pseudocode \ref{RWMC}. The C++ implementation can be found on \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P3.cpp}{Github}.
+	\begin{algorithm}
+		\caption{Random Walk Markov Chain}\label{RWMC}
+		\hspace*{\algorithmicindent} \textbf{Input} $X_0$
+		\begin{algorithmic}[1]
+			\For{$j \gets 1$ to $ 10000$}
+			\State $\delta_{j-1} \sim \text{Bernoulli}(0.5)$
+			\If{$\delta_{j-1} = 0$}
 			\State $X_j \sim N(X_{j-1}, 1)$
-		\Else
+			\Else
 			\State $\eta_{j-1} \sim \text{Bernoulli}(0.5)$
 			\State $X_j \gets X_{j-1} + 2\eta_{j-1} - 1$
-		\EndIf
-		\EndFor
-	\end{algorithmic}
-	\hspace*{\algorithmicindent} \textbf{Output} $\begin{bmatrix}X_0 & X_1 & \cdots &X_{10000} \end{bmatrix}$
-\end{algorithm}
+			\EndIf
+			\EndFor
+		\end{algorithmic}
+		\hspace*{\algorithmicindent} \textbf{Output} $\begin{bmatrix}X_0 & X_1 & \cdots &X_{10000} \end{bmatrix}$
+	\end{algorithm}
+
+	A realization is shown in Figure \ref{rwmcchain}.
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[scale=0.7]{P3mcchain.eps}
+		\caption{A realization of Random Walk Markov Chain}\label{rwmcchain}
+	\end{figure}
+	\item 
+	
+	The algorithm for estimating $m$ step transitional probability distribution is depicted in pseudocode \ref{mstepest}. The C++ implementation can be found on \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P3.cpp}{Github}. A realization of three step transition probability distribution is plotted in Figure \ref{mstepplot}.
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[scale=0.7]{mstep.eps}
+		\caption{Three step transition probability distributions from $X=4$}\label{mstepplot}
+	\end{figure}
+\end{enumerate}
+
+
 
 \begin{algorithm}
 	\caption{Estimate M Step Transition}\label{mstepest}
@@ -82,6 +124,7 @@
 	\end{algorithmic}
 	\hspace*{\algorithmicindent} \textbf{Output} $\{X_0, X_1, \cdots X_{n-m} \}$
 \end{algorithm}
+
 
 \section*{Problem 4}
 
@@ -107,6 +150,9 @@
 
 
 \section*{Problem 5}
+
+\textcolor{blue}{Note: I have some convergence issues with this problem. I plan come to office hour later to discuss them.}
+
  For $\bm{\mu} = \begin{bmatrix}\mu_1 & \mu_2\end{bmatrix}^\top$, We have 
  \[ \pi (\bm{\mu}) = \frac{1}{\sqrt{2\pi}} \exp\left( -\mu_1^2/2\right)\cdot \frac{1}{\sqrt{0.002\pi}}\exp\left( -500\mu_2^2\right)\cdot \prod_{j=1}^{100}\frac{1}{\sqrt{2\pi}} \exp \left(-(Y_j - \mu_1 - \mu_2)^2 / 2 \right)  \] 
 Therefore
@@ -115,10 +161,10 @@ Therefore
 	-1000 \mu_2 - \sum_{j=1}^{100}(Y_j - \mu_1 - \mu_2)
  \end{pmatrix} \]
 
-Based on the derivations above, we can set up the Langevin diffusion algorithm with scaling factor tuning.
+Based on the derivations above, we can set up the Langevin diffusion in algorithm \ref{langevin} with scaling factor tuning. 
 
 \begin{algorithm}
-	\caption{Langevin Diffusion}
+	\caption{Langevin Diffusion}\label{langevin}
 	\hspace*{\algorithmicindent} \textbf{Input}  $\{Y_1, Y_2, \cdots, Y_n \}$, Chain Length $N$, initial scaling factor $\sigma_0^2$, scaling factor update period $T$ 
 	\begin{algorithmic}[1]
 		\State $\bm{\mu}_0 \gets \begin{bmatrix}5 & 5\end{bmatrix}^\top$
@@ -128,7 +174,7 @@ Based on the derivations above, we can set up the Langevin diffusion algorithm w
 		\State $Z\sim N\left(\begin{pmatrix}0 \\ 0\end{pmatrix}, \begin{pmatrix}1 & 0 \\ 0 & 1\end{pmatrix} \right)$
 		\State $\bm{\mu}' \gets \bm{\mu}_i + \sigma^2 \nabla \log \pi(\bm{\mu}_i)/2 + \sigma Z$
 		\State $U\sim \text{Uniform}(0, 1)$
-		\If{$U < \min \left(1, \frac{\pi(\bm{\mu}') \cdot \exp (-\lVert\bm{\mu}'-\bm{\mu}_i-\sigma^2\nabla \log \pi(\bm{\mu}_i)/2 \rVert^2 / 2\sigma^2)}{\pi(\bm{\mu}_i) \cdot \exp (-\lVert\bm{\mu}_i-\bm{\mu}'-\sigma^2\nabla \log \pi(\bm{\mu}')/2 \rVert^2 /2\sigma^2)}\right)$}
+		\If{$U < \min \left(1, \frac{\pi(\bm{\mu}') \cdot \exp (-\lVert\bm{\mu}_i-\bm{\mu}'-\sigma^2\nabla \log \pi(\bm{\mu}')/2 \rVert^2 /2\sigma^2) }{\pi(\bm{\mu}_i) \cdot \exp (-\lVert\bm{\mu}'-\bm{\mu}_i-\sigma^2\nabla \log \pi(\bm{\mu}_i)/2 \rVert^2 / 2\sigma^2)}\right)$}
 		\State $A\gets A+1$
 		\State $\bm{\mu}_{i+1}\gets \bm{\mu}'$
 		\Else
@@ -150,4 +196,41 @@ Based on the derivations above, we can set up the Langevin diffusion algorithm w
 	\end{algorithmic}
 	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\mu}_0, \bm{\mu}_1, \cdots, \bm{\mu}_N \}$
 \end{algorithm}
+
+The C++ code is available on \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P5.cpp}{Github}. Following the instruction that $n=100$, $Y\sim N(10, 1)$ and both $\mu_1$ and $\mu_2$ are both equal to 5, I ran MALA for 30000 iterations with the scaling factor updated every 100 iterations(see this \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P5.R}{R code}). The initial scaling factor is $10^{-8}$. Figure \ref{p5acceptance} indicates that MALA helps the acceptance rate converge to the ideal value of 0.574 quickly. 
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[scale=0.7]{/home/wangmk/UM/BIOSTAT882/HW1/P5acceptance.eps}
+	\caption{Acceptance rate quickly converged around ideal value of 0.574 with MALA}\label{p5acceptance}
+\end{figure}
+
+The mixing of $\mu_1$ and $\mu_2$ however are not so good judging from Figure \ref{p5mixing}. According to the posterior distribution, $\mu_1$ has a mean value of 5.42 and a standard deviation of 0.026. $\mu_2$ has a mean value of -0.04 and a standard deviation of 0.014.
+
+\begin{figure}[htbp]
+	\begin{subfigure}[b]{0.45\columnwidth}
+		\includegraphics[width=\linewidth]{tracemu1.eps}
+		\caption{Trace of $\mu_1$ for the last 5000 iterations}
+		\label{tracemu1}
+	\end{subfigure}
+	\hfill 
+	\begin{subfigure}[b]{0.45\columnwidth}
+		\includegraphics[width=\linewidth]{histmu1.eps}
+		\caption{Distribution of $\mu_1$ for the last 5000 iterations}
+		\label{histmu1}
+	\end{subfigure}
+	\begin{subfigure}[b]{0.45\columnwidth}
+		\includegraphics[width=\linewidth]{mu2trace.eps}
+		\caption{Trace of $\mu_2$ for the last 5000 iterations}
+		\label{tracemu2}
+	\end{subfigure}
+	\hfill 
+	\begin{subfigure}[b]{0.45\columnwidth}
+		\includegraphics[width=\linewidth]{histmu2.eps}
+		\caption{Distribution of $\mu_2$ for the last 5000 iterations}
+		\label{histmu2}
+	\end{subfigure}
+	
+	\caption{Posterior Distribution of $\mu_1$ and $\mu_2$}\label{p5mixing}
+\end{figure}
 \end{document}
