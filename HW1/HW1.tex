@@ -71,7 +71,7 @@ for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1}
   Thus $(0, c)$ is a small set for any $c>0$.
 \section*{Problem 2}
  $\{X_n \}_{n=0}^{\infty}$ is not irreducible because for $X_n=0$ all the following chain will have to be zero, i.e. $X_{n+1} = X_{n+2} =\cdots =0$
- Thus $K^n (0, A) = 0 \quad \forall A\in (0, +\infty)$. Therefore $\{X_n \}_{n=0}^{\infty}$ is not irreducible.
+ Thus $K^n (0, A) = 0 \quad \forall A\subset (0, +\infty)$. Therefore $\{X_n \}_{n=0}^{\infty}$ is not irreducible.
 
 \section*{Problem 3}
 
@@ -128,11 +128,14 @@ for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1}
 
 \section*{Problem 4}
 
-\begin{algorithm}
-	\caption{Independent Metropolis-Hastings}\label{IMH}
-	\hspace*{\algorithmicindent} \textbf{Input} Number of Chains $K$, Chain Length $N$, Target Rate $R_{t}$, Proposal Rate $R_{p}$
-	\begin{algorithmic}[1]
-		\For{$i \gets 1$ to $K$}
+\begin{enumerate}[(a)]
+	\item The independent Metropolis Hastings algorithm is depicted in pseudocode \ref{IMH}. I run 50 independent Markov chains with 10000 iterations based on each proposal distribution ($\exp(0.1)$ and $\exp(50)$). Then I estimate the rates of the exponential distribution based on the sample draws of the last 1000 iterations for each Markov chain. The C++ \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P4.cpp}{code} for running the Markov chain and the R \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P4.R}{code} illustrating the use of it are available on Github. 
+	
+	\begin{algorithm}
+		\caption{Independent Metropolis-Hastings}\label{IMH}
+		\hspace*{\algorithmicindent} \textbf{Input} Number of Chains $K$, Chain Length $N$, Target Rate $R_{t}$, Proposal Rate $R_{p}$
+		\begin{algorithmic}[1]
+			\For{$i \gets 1$ to $K$}
 			\State $X_{i,0} \sim \text{Uniform}(R_t/2, 2R_t)$
 			\For{$j \gets 0$ to $N-1$}
 			\State $Y \sim \exp (R_p)$
@@ -143,10 +146,29 @@ for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1}
 			\State $X_{i,j+1}\gets X_{i,j}$
 			\EndIf
 			\EndFor
-		\EndFor
-	\end{algorithmic}
-	\hspace*{\algorithmicindent} \textbf{Output} $\{ X_{i,j}\}$, $i=1,2,\cdots K$, $j=1,2,\cdots N$
-\end{algorithm}
+			\EndFor
+		\end{algorithmic}
+		\hspace*{\algorithmicindent} \textbf{Output} $\{ X_{i,j}\}$, $i=1,2,\cdots K$, $j=1,2,\cdots N$
+	\end{algorithm}
+	
+	
+	Based on the boxplots in Figure \ref{IMHperformance}, I can tell that the proposal distribution of $\exp(0.1)$ does a much better job than $\exp(5)$ at converging to the target distribution of $\exp(1)$.
+	
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[scale=0.7]{IMHestimate.eps}
+		\caption{Estimated rate of posterior exponential distribution based on two different proposal distribution $\exp(0.1)$ and $\exp(5)$. The $\exp(0.1)$ does a much better job at convergence to the target distribution of $\exp(1)$.}\label{IMHperformance}
+	\end{figure}
+
+	\item We learnt from lecture 3 that the criteria to judge if a proposal distribution $g(x)$ can generate a uniformly ergodic Markov chain for target distribution $f(x)$ is whether
+	\[ f(x) \leq Mg(x), \qquad \forall x \in \{ y\in \mathcal{X}: f(y)>0 \} \]
+	Now we have the target distribution $f(x) = \exp(-x)$ and two proposal distributions $g_1(x) = 0.1\exp(-0.1x)$ and $g_2(x)=5\exp(-5x)$. We can easily tell that 
+	\[ f(x)\leq 10g_1(x)\quad \forall x\geq 0 \]
+	and 
+	\[ \forall M>0, \exists x>\log(5M/4)\quad \text{such that}\quad f(x) > Mg_2(x) \]
+	This proves why $\exp(0.1)$ is a better distribution than $\exp(5)$ for generating a uniformly ergodic chain with posterior distribution of $\exp(1)$.
+\end{enumerate}
+
 
 
 \section*{Problem 5}
