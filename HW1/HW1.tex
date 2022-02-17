@@ -175,7 +175,6 @@ for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1}
 
 \section*{Problem 5}
 
-\emph{Note: I have some convergence issues with this problem. I plan to come to office hour later to discuss them.}
 
  For $\bm{\mu} = \begin{bmatrix}\mu_1 & \mu_2\end{bmatrix}^\top$, We have 
  \[ \pi (\bm{\mu}) = \frac{1}{\sqrt{2\pi}} \exp\left( -\mu_1^2/2\right)\cdot \frac{1}{\sqrt{0.002\pi}}\exp\left( -500\mu_2^2\right)\cdot \prod_{j=1}^{100}\frac{1}{\sqrt{2\pi}} \exp \left(-(Y_j - \mu_1 - \mu_2)^2 / 2 \right)  \] 
@@ -221,7 +220,7 @@ Based on the derivations above, we can set up the Langevin diffusion in algorith
 	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\mu}_0, \bm{\mu}_1, \cdots, \bm{\mu}_N \}$
 \end{algorithm}
 
-The C++ code is available on \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P5.cpp}{Github}. Following the instruction that $n=100$, $Y\sim N(10, 1)$ and both $\mu_1$ and $\mu_2$ are both equal to 5, I ran MALA for 30000 iterations with the scaling factor updated every 100 iterations(see this \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P5.R}{R code}). The initial scaling factor is $10^{-8}$. Figure \ref{p5acceptance} indicates that MALA helps the acceptance rate converge to the ideal value of 0.574 quickly. 
+The C++ code is available on \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P5.cpp}{Github}. Following the instruction that $n=100$, $Y\sim N(10, 1)$ and both $\mu_1$ and $\mu_2$ are both equal to 5, I ran MALA for 40000 iterations with the scaling factor updated every 100 iterations(see this \href{https://github.com/mkbwang/BIOSTAT882/blob/master/HW1/P5.R}{R code}). The initial scaling factor is $10^{-8}$. Figure \ref{p5acceptance} indicates that MALA helps the acceptance rate converge to the ideal value of 0.574 quickly. 
 
 \begin{figure}[htbp]
 	\centering
@@ -229,7 +228,7 @@ The C++ code is available on \href{https://github.com/mkbwang/BIOSTAT882/blob/ma
 	\caption{Acceptance rate quickly converged around ideal value of 0.574 with MALA}\label{p5acceptance}
 \end{figure}
 
-The mixing of $\mu_1$ and $\mu_2$ however are not so good judging from Figure \ref{p5mixing}. According to the posterior distribution, $\mu_1$ has a mean value of 5.42 and a standard deviation of 0.026. $\mu_2$ has a mean value of -0.04 and a standard deviation of 0.014.
+The mixing of $\mu_1$ is not so good judging from Figure \ref{p5mixing}. The mixing of $\mu_2$ is better. According to the posterior distribution, $\mu_1$ has a mean value of 9.58 and a standard deviation of 0.17. $\mu_2$ has a mean value of 0.009 and a standard deviation of 0.032.
 
 \begin{figure}[htbp]
 	\begin{subfigure}[b]{0.45\columnwidth}
