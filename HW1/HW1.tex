@@ -53,6 +53,8 @@
 \maketitle
 
 
+\emph{Note: Check the electronic version of the homework submission to have access to C++ and R code on Github.}
+
 \section*{Problem 1}
 
 Given a number $c>0$, I can construct a function
@@ -93,7 +95,7 @@ for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1}
 			\EndIf
 			\EndFor
 		\end{algorithmic}
-		\hspace*{\algorithmicindent} \textbf{Output} $\begin{bmatrix}X_0 & X_1 & \cdots &X_{10000} \end{bmatrix}$
+		\hspace*{\algorithmicindent} \textbf{Output} $\{X_1 , X_2 ,\cdots ,X_{10000} \}$
 	\end{algorithm}
 
 	A realization is shown in Figure \ref{rwmcchain}.
@@ -122,7 +124,7 @@ for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1}
 		\State $X_j \gets x + Y_{j+m} - Y_{j}$
 		\EndFor
 	\end{algorithmic}
-	\hspace*{\algorithmicindent} \textbf{Output} $\{X_0, X_1, \cdots X_{n-m} \}$
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ X_1,X_2, \cdots X_{n-m} \}$
 \end{algorithm}
 
 
@@ -173,14 +175,14 @@ for $X_{n+1} \in  \mathbb{R}_+$ such that $K(X_n, X_{n+1}) > \nu_1(\diff X_{n+1}
 
 \section*{Problem 5}
 
-\textcolor{blue}{Note: I have some convergence issues with this problem. I plan come to office hour later to discuss them.}
+\emph{Note: I have some convergence issues with this problem. I plan to come to office hour later to discuss them.}
 
  For $\bm{\mu} = \begin{bmatrix}\mu_1 & \mu_2\end{bmatrix}^\top$, We have 
  \[ \pi (\bm{\mu}) = \frac{1}{\sqrt{2\pi}} \exp\left( -\mu_1^2/2\right)\cdot \frac{1}{\sqrt{0.002\pi}}\exp\left( -500\mu_2^2\right)\cdot \prod_{j=1}^{100}\frac{1}{\sqrt{2\pi}} \exp \left(-(Y_j - \mu_1 - \mu_2)^2 / 2 \right)  \] 
 Therefore
 \[ \nabla \log \pi(\bm{\mu}) = \begin{pmatrix}
-	-\mu_1 - \sum_{j=1}^{100}(Y_j - \mu_1 - \mu_2) \\
-	-1000 \mu_2 - \sum_{j=1}^{100}(Y_j - \mu_1 - \mu_2)
+	-\mu_1 + \sum_{j=1}^{100}(Y_j - \mu_1 - \mu_2) \\
+	-1000 \mu_2 + \sum_{j=1}^{100}(Y_j - \mu_1 - \mu_2)
  \end{pmatrix} \]
 
 Based on the derivations above, we can set up the Langevin diffusion in algorithm \ref{langevin} with scaling factor tuning. 

@@ -9,6 +9,9 @@ sourceCpp("HW1/P5.cpp")
 result <- langevin5(yvec, chain_length=30000, sigma02=1e-8, 
                       init_mu1 = 5, init_mu2 = 5)
 
+# loglik
+plot(x=25000:30000, result$loglik[25000:30000], type='l')
+
 # acceptance
 plot(result$acceptance, type='l',
      xlab = "Step", ylab="Average Rate", main="Average Acceptance Rate every 100 steps")
