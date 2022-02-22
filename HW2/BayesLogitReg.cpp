@@ -31,12 +31,12 @@ double adjust_acceptance(double accept,double sgm,double target = 0.5){
 
 
 
-class BayesLogitReg{
+class BayesProbitReg{
   
 private:
   int method;
 
-  struct logitRegData{
+  struct ProbitRegData{
     int num_subjects;
     int num_predictors;
     vec y;
@@ -45,13 +45,13 @@ private:
     double sum_y;
   } dat;
   
-  struct logitVars{
+  struct ProbitVars{
     vec X_beta;
     vec prob;
     double sum_beta_sq;
   } current_vars, proposal_vars;
   
-  struct logitRegParas{
+  struct ProbitRegParas{
     vec beta;
     vec momentum;
     double sigma2_beta;
@@ -147,7 +147,7 @@ public:
 
 };
 
-void BayesLogitReg::set_method(CharacterVector in_method){
+void BayesProbitReg::set_method(CharacterVector in_method){
   
   if(in_method(0)=="RW"){
     std::cout << "Random Walk" << std::endl;
@@ -161,7 +161,7 @@ void BayesLogitReg::set_method(CharacterVector in_method){
   }
 }
 
-void BayesLogitReg::load_data(const vec& y, const mat& X){
+void BayesProbitReg::load_data(const vec& y, const mat& X){
   dat.num_subjects = y.n_elem;
   dat.num_predictors = X.n_cols;
   dat.y = y;
@@ -170,7 +170,7 @@ void BayesLogitReg::load_data(const vec& y, const mat& X){
   dat.sum_y = accu(y);
 }
 
-void BayesLogitReg::set_initial_values(const vec& beta, const double& sigma2_beta){
+void BayesProbitReg::set_initial_values(const vec& beta, const double& sigma2_beta){
   
   initial_paras.beta = beta; 
   initial_paras.sigma2_beta = sigma2_beta;
@@ -197,7 +197,7 @@ void BayesLogitReg::set_initial_values(const vec& beta, const double& sigma2_bet
   
 }
 
-void BayesLogitReg::set_alg_control(const int& mcmc_sample, 
+void BayesProbitReg::set_alg_control(const int& mcmc_sample, 
                                     const int& burnin, 
                                     const int& thinning,
                                     const int& step_adjust_accept,
@@ -232,7 +232,7 @@ void BayesLogitReg::set_alg_control(const int& mcmc_sample,
 
 }
 
-double BayesLogitReg::comp_loglik(const vec& beta){
+double BayesProbitReg::comp_loglik(const vec& beta){
   vec eta = dat.X*beta;
   eta = log1pexp_fast(eta);
   double loglik = accu(beta%dat.Xty);
@@ -243,7 +243,7 @@ double BayesLogitReg::comp_loglik(const vec& beta){
 
 
 
-void BayesLogitReg::update_proposal_paras(){
+void BayesProbitReg::update_proposal_paras(){
   //Random Walk
   if(method==0){
     proposal_paras.beta = current_paras.beta + control.step_size*randn<vec>(dat.num_predictors);
@@ -283,7 +283,7 @@ void BayesLogitReg::update_proposal_paras(){
 }
 
 
-void BayesLogitReg::update_proposal_vars(){
+void BayesProbitReg::update_proposal_vars(){
   proposal_vars.X_beta = dat.X*proposal_paras.beta;
   proposal_vars.sum_beta_sq = sum(proposal_paras.beta%proposal_paras.beta);
   if(method>0){
@@ -292,7 +292,7 @@ void BayesLogitReg::update_proposal_vars(){
 }
 
 
-void BayesLogitReg::update_proposal_loglik(){
+void BayesProbitReg::update_proposal_loglik(){
   vec eta = log1pexp_fast(proposal_vars.X_beta);
   proposal_logden.lik = -accu(eta); 
   if(dat.num_predictors > dat.num_subjects){
@@ -302,35 +302,35 @@ void BayesLogitReg::update_proposal_loglik(){
   }
 }
 
-void BayesLogitReg::update_proposal_d_loglik(){
+void BayesProbitReg::update_proposal_d_loglik(){
   for(int j=0;j<dat.num_predictors;j++){
     proposal_d_logden.lik(j) = accu((dat.y - proposal_vars.prob)%dat.X.col(j));
   }
 }
 
 
-void BayesLogitReg::update_proposal_logprior(){
+void BayesProbitReg::update_proposal_logprior(){
   proposal_logden.prior = -0.5*proposal_vars.sum_beta_sq/proposal_paras.sigma2_beta;
 }
 
-void BayesLogitReg::update_proposal_d_logprior(){
+void BayesProbitReg::update_proposal_d_logprior(){
   proposal_d_logden.prior = -proposal_paras.beta/proposal_paras.sigma2_beta;
 }
 
 
-void BayesLogitReg::update_proposal_logden(){
+void BayesProbitReg::update_proposal_logden(){
   update_proposal_loglik();
   update_proposal_logprior();
   proposal_logden.post = proposal_logden.lik + proposal_logden.prior;
 }
 
-void BayesLogitReg::update_proposal_d_logden(){
+void BayesProbitReg::update_proposal_d_logden(){
   update_proposal_d_loglik();
   update_proposal_d_logprior();
   proposal_d_logden.post = proposal_d_logden.lik + proposal_d_logden.prior;
 }
 
-void BayesLogitReg::update_log_accept_ratio(){
+void BayesProbitReg::update_log_accept_ratio(){
   log_accept_ratio = proposal_logden.post - current_logden.post;
   if(method==1){
     vec temp = proposal_paras.beta - current_paras.beta - 0.5*control.step_size_sq*current_d_logden.post;
@@ -344,7 +344,7 @@ void BayesLogitReg::update_log_accept_ratio(){
   }
 }
 
-void BayesLogitReg::update_current_paras(){
+void BayesProbitReg::update_current_paras(){
   
   //update beta;
   double u = randu<double>();
@@ -376,14 +376,14 @@ void BayesLogitReg::update_current_paras(){
   
 }
 
-void BayesLogitReg::update_accept_rate(){
+void BayesProbitReg::update_accept_rate(){
   if(iter % control.step_adjust_accept==0){
     accept_rate = accept_count*1.0/control.step_adjust_accept;
     accept_count = 0;
   }
 }
 
-void BayesLogitReg::update_step_size(){
+void BayesProbitReg::update_step_size(){
   if(iter < control.maxiter_adjust_accept){
     if(iter % control.step_adjust_accept==0){
       control.step_size = adjust_acceptance(accept_rate,
@@ -394,14 +394,14 @@ void BayesLogitReg::update_step_size(){
   }
 }
 
-void BayesLogitReg::save_profile(){
+void BayesProbitReg::save_profile(){
   trace.accept_rate(iter) = accept_rate;
   trace.loglik(iter) = current_logden.lik;
   trace.logprior(iter) = current_logden.prior;
   trace.logpost(iter) = current_logden.post;
 }
 
-void BayesLogitReg::save_mcmc_sample(){
+void BayesProbitReg::save_mcmc_sample(){
   if(iter > control.burnin){
   if((iter - control.burnin)%control.thinning==0){
     int mcmc_iter = (iter - control.burnin)/control.thinning;
@@ -411,7 +411,7 @@ void BayesLogitReg::save_mcmc_sample(){
   }
 }
 
-void BayesLogitReg::monitor_mcmc(){
+void BayesProbitReg::monitor_mcmc(){
   if(control.verbose > 0){
     if(iter%control.verbose==0){
       std::cout << "iter: " << iter <<  " logpost: "<<  current_logden.post << std::endl;
@@ -419,7 +419,7 @@ void BayesLogitReg::monitor_mcmc(){
   }
   
 }
-List BayesLogitReg::get_control(){
+List BayesProbitReg::get_control(){
   return List::create(Named("mcmc_sample") = control.mcmc_sample,
                       Named("burnin") = control.burnin,
                       Named("step_adjust_accept") = control.step_adjust_accept,
@@ -431,7 +431,7 @@ List BayesLogitReg::get_control(){
                       Named("verbose") = control.verbose);
 }
 
-void BayesLogitReg::run_mcmc(){
+void BayesProbitReg::run_mcmc(){
   for(iter=0;iter<total_iter; iter++){
     update_proposal_paras();
     update_log_accept_ratio();
@@ -444,18 +444,18 @@ void BayesLogitReg::run_mcmc(){
   }
 }
 
-List BayesLogitReg::get_mcmc(){
+List BayesProbitReg::get_mcmc(){
   return List::create(Named("beta") = mcmc.beta,
                       Named("sigma2_beta") = mcmc.sigma2_beta);
 }
 
-List BayesLogitReg::get_post_mean(){
+List BayesProbitReg::get_post_mean(){
   vec beta = mean(mcmc.beta,1);
   return List::create(Named("beta") = beta,
                       Named("sigma2_beta") = mean(mcmc.sigma2_beta));
 }
 
-List BayesLogitReg::get_trace(){
+List BayesProbitReg::get_trace(){
   return List::create(Named("accept_rate") = trace.accept_rate,
                       Named("loglik") = trace.loglik,
                       Named("logprior") = trace.logprior,
@@ -464,7 +464,7 @@ List BayesLogitReg::get_trace(){
 
 
 //[[Rcpp::export]]
-List simul_dat_logit(int n, double intercept, vec& beta, double X_rho, double X_sd){
+List simul_dat_Probit(int n, double intercept, vec& beta, double X_rho, double X_sd){
   double sqrt_X_rho = sqrt(X_rho);
   mat X = X_sd*sqrt(1.0-X_rho)*randn<mat>(n,beta.n_elem);
   vec Z = X_sd*sqrt_X_rho*randn<vec>(n);
@@ -487,7 +487,7 @@ List simul_dat_logit(int n, double intercept, vec& beta, double X_rho, double X_
 
 
 // [[Rcpp::export]]
-List Bayes_logit_reg(vec& y, mat& X, 
+List Bayes_Probit_reg(vec& y, mat& X, 
                      CharacterVector method,
                      vec initial_beta,
                      double initial_sigma2_beta,
@@ -505,7 +505,7 @@ List Bayes_logit_reg(vec& y, mat& X,
   
   wall_clock timer;
   timer.tic();
-  BayesLogitReg model;
+  BayesProbitReg model;
   
   if(include_intercept){
      X.insert_cols(0,ones<vec>(X.n_rows));

@@ -9,3 +9,4 @@ class_notes/
 *.gz
 *.Rhistory
 .Rproj.user
+.vscode/
