@@ -1,4 +1,6 @@
 #include <RcppArmadillo.h>
+#include <cmath>
+using namespace std;
 
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -16,6 +18,21 @@ vec log1pexp_fast(vec& x){
   ids = find(x > 18.0 && x <= 33.3);
   y.elem(ids) = x.elem(ids) + exp(-x.elem(ids));
   return y;
+}
+
+// [[Rcpp::export]]
+arma::vec probit(arma::vec y, bool islower=true, bool takelog=false) {
+  const int numindv = y.n_elem;
+  arma::vec probs = arma::vec(numindv);
+  for (int i = 0 ; i < numindv; i++){
+    probs(i) = R::pnorm(y(i), 0, 1, islower, takelog);
+  }
+  return probs;
+}
+
+arma::vec gaussian(arma::vec y){
+  arma::vec density = arma::exp(- y % y / 2) / std::sqrt(2 * arma::datum::pi);
+  return density;
 }
 
 // [[Rcpp::export]]
@@ -90,6 +107,8 @@ private:
     double initial_step_size;
     double step_size;
     double step_size_sq;
+    double a_gamma;
+    double b_gamma;
     double target_accept;
     int leapfrog_steps;
     int verbose;
@@ -110,7 +129,7 @@ public:
   void load_data(const vec&, const mat&);
   void set_initial_values(const vec&, const double&);
   void set_alg_control(const int&, const int&, const int&, const int&, const int&,
-                       const double&,const double&, const int&, const int&);
+                       const double&,const double&, const double&, const double&, const int&, const int&);
   double comp_loglik(const vec&);
   double get_proposal_loglik(){
     return proposal_logden.lik;
@@ -204,6 +223,8 @@ void BayesProbitReg::set_alg_control(const int& mcmc_sample,
                                     const int& maxiter_adjust_accept,
                                     const double& target_accept,
                                     const double& initial_step_size,
+                                    const double& a_gamma,
+                                    const double& b_gamma,
                                     const int& leapfrog_steps,
                                     const int& verbose){
   control.mcmc_sample = mcmc_sample;
@@ -215,6 +236,8 @@ void BayesProbitReg::set_alg_control(const int& mcmc_sample,
   control.initial_step_size = initial_step_size;
   control.step_size = initial_step_size;
   control.step_size_sq = control.step_size*control.step_size;
+  control.a_gamma = a_gamma;
+  control.b_gamma = b_gamma;
   control.leapfrog_steps = leapfrog_steps;
   control.verbose = verbose;
   
@@ -234,10 +257,8 @@ void BayesProbitReg::set_alg_control(const int& mcmc_sample,
 
 double BayesProbitReg::comp_loglik(const vec& beta){
   vec eta = dat.X*beta;
-  eta = log1pexp_fast(eta);
-  double loglik = accu(beta%dat.Xty);
-  loglik -= accu(eta);
-  return(loglik);
+  double loglik = accu(probit(eta, true, true)%dat.y) + accu(probit(eta, false, true)%(1-dat.y));
+  return loglik;
 }
 
 
@@ -285,26 +306,22 @@ void BayesProbitReg::update_proposal_paras(){
 
 void BayesProbitReg::update_proposal_vars(){
   proposal_vars.X_beta = dat.X*proposal_paras.beta;
-  proposal_vars.sum_beta_sq = sum(proposal_paras.beta%proposal_paras.beta);
+  proposal_vars.sum_beta_sq = sum(proposal_paras.beta % proposal_paras.beta);
   if(method>0){
-    proposal_vars.prob = 1.0/(1.0 + exp(-proposal_vars.X_beta));
+    proposal_vars.prob = probit(proposal_vars.X_beta, true, false);
   }
 }
 
 
 void BayesProbitReg::update_proposal_loglik(){
-  vec eta = log1pexp_fast(proposal_vars.X_beta);
-  proposal_logden.lik = -accu(eta); 
-  if(dat.num_predictors > dat.num_subjects){
-    proposal_logden.lik += accu(dat.y%proposal_vars.X_beta);
-  } else{
-    proposal_logden.lik += accu(proposal_paras.beta%dat.Xty);
-  }
+  proposal_logden.lik = accu(dat.y % probit(proposal_vars.X_beta, true, true)) + 
+          accu((1-dat.y) % probit(proposal_vars.X_beta, false, true)); 
 }
 
 void BayesProbitReg::update_proposal_d_loglik(){
   for(int j=0;j<dat.num_predictors;j++){
-    proposal_d_logden.lik(j) = accu((dat.y - proposal_vars.prob)%dat.X.col(j));
+    arma::vec stdy = (dat.y - proposal_vars.prob) / (proposal_vars.prob % (1 - proposal_vars.prob)); 
+    proposal_d_logden.lik(j) = accu(stdy % gaussian(proposal_vars.X_beta) % dat.X.col(j));
   }
 }
 
@@ -361,8 +378,8 @@ void BayesProbitReg::update_current_paras(){
   proposal_paras = current_paras;
   update_proposal_vars();
   double sum_beta_sq = accu(current_paras.beta%current_paras.beta);
-  proposal_paras.sigma2_beta = 1.0/randg(distr_param(0.5*dat.num_predictors + 0.01,
-                                                     1.0/(0.5*sum_beta_sq + 0.01)));
+  proposal_paras.sigma2_beta = 1.0/randg(distr_param(0.5*dat.num_predictors + control.a_gamma,
+                                                     1.0/(0.5*sum_beta_sq + control.b_gamma)));
   
   update_proposal_logden();
   if(method > 0){
@@ -471,7 +488,7 @@ List simul_dat_Probit(int n, double intercept, vec& beta, double X_rho, double X
   for(int j=0; j<X.n_cols;j++){
     X.col(j) += Z;
   }
-  vec prob = 1.0/(1.0+exp(-intercept - X*beta));
+  vec prob = probit(intercept + X*beta, true, false);
   vec u = randu<vec>(n);
   vec y = conv_to<vec>::from(u < prob);
   double R2 = var(prob)/var(y);
@@ -500,6 +517,8 @@ List Bayes_Probit_reg(vec& y, mat& X,
                      int maxiter_adjust_accept = 5000,
                      double target_accept = 0.50,
                      double initial_step_size=0.001,
+                     double a_gamma=0.01,
+                     double b_gamma=0.01,
                      int leapfrog_steps = 20,
                      int verbose = 5000){
   
@@ -522,6 +541,8 @@ List Bayes_Probit_reg(vec& y, mat& X,
                          maxiter_adjust_accept,
                          target_accept,
                          initial_step_size,
+                         a_gamma,
+                         b_gamma,
                          leapfrog_steps,
                          verbose);
    

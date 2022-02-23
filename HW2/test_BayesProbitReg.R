@@ -1,5 +1,5 @@
 rm(list=ls(all=TRUE))
-Rcpp::sourceCpp("/Users/jiankang/Dropbox (University of Michigan)/Umich/AdvancedBayes/Winter2022/RcppCode/BayesLogitReg.cpp")
+Rcpp::sourceCpp("HW2/BayesProbitReg.cpp")
 
 p = 10
 n = 500
@@ -17,27 +17,28 @@ burnin = 10000
 thinning = 10
 step_adjust_accept = 100
 maxiter_adjust_accept = 5000
+a_beta = 0.01
+b_beta = 0.01
 
 
+dat <- simul_dat_Probit(n, intercept = true_intercept, beta = true_beta, X_rho = 0.5, X_sd = 1)
+glm_fit <-glm(dat$y~dat$X,family = binomial(link = "probit"))
 
-dat <- simul_dat_logit(n, intercept = true_intercept, beta = true_beta, X_rho = 0.5, X_sd = 1)
-glm_fit <-glm(dat$y~dat$X,family="binomial")
-
-HMC_fit <- Bayes_logit_reg(dat$y,dat$X, method="HMC",
+HMC_fit <- Bayes_Probit_reg(dat$y,dat$X, method="HMC",
                            initial_beta, initial_sigma2_beta, include_intercept,
                            initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept, maxiter_adjust_accept,
-                           target_accept = 0.65, initial_step_size = 0.01,leapfrog_steps = 20)
+                           target_accept = 0.65, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01, leapfrog_steps = 20)
 
-MALA_fit <- Bayes_logit_reg(dat$y,dat$X, method="MALA",
+MALA_fit <- Bayes_Probit_reg(dat$y,dat$X, method="MALA",
                             initial_beta, initial_sigma2_beta, include_intercept,
                             initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept, maxiter_adjust_accept,
-                            target_accept = 0.50, initial_step_size = 0.01)
+                            target_accept = 0.50, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01)
 
-RW_fit <- Bayes_logit_reg(dat$y,dat$X, method="RW",
+RW_fit <- Bayes_Probit_reg(dat$y,dat$X, method="RW",
                             initial_beta, 
                             initial_sigma2_beta, include_intercept,
                             initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept,maxiter_adjust_accept,
-                            target_accept = 0.25, initial_step_size = 0.01)
+                            target_accept = 0.25, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01)
 
 plot(RW_fit$trace$accept_rate,type="l")
 par(mfcol=c(1,1))
