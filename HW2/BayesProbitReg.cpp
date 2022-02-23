@@ -1,8 +1,9 @@
-#include <RcppArmadillo.h>
+#include <RcppDist.h>
 #include <cmath>
+#include <limits>
 using namespace std;
 
-// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::depends(RcppArmadillo, RcppDist)]]
 
 using namespace Rcpp;
 using namespace arma;
@@ -21,7 +22,7 @@ vec log1pexp_fast(vec& x){
 }
 
 // [[Rcpp::export]]
-arma::vec probit(arma::vec y, bool islower=true, bool takelog=false) {
+arma::vec probit(arma::vec& y, bool islower=true, bool takelog=false) {
   const int numindv = y.n_elem;
   arma::vec probs = arma::vec(numindv);
   for (int i = 0 ; i < numindv; i++){
@@ -30,9 +31,30 @@ arma::vec probit(arma::vec y, bool islower=true, bool takelog=false) {
   return probs;
 }
 
-arma::vec gaussian(arma::vec y){
+arma::vec gaussian(arma::vec& y){
   arma::vec density = arma::exp(- y % y / 2) / std::sqrt(2 * arma::datum::pi);
   return density;
+}
+
+arma::vec tnorm(arma::vec& x_beta, arma::vec& y){
+  const int numindv = y.n_elem;
+  arma::vec z = arma::vec(numindv);
+  for (int i=0; i < numindv; i++){
+    if (y(i)==1){
+      z(i) = r_truncnorm(x_beta(i), 1, 0, numeric_limits<double>::max());
+    } else{
+      z(i) = r_truncnorm(x_beta(i), 1, numeric_limits<double>::min(), 0);
+    }
+  }
+  return z;
+}
+
+
+// [[Rcpp::export]]
+arma::vec mvrnormArma(arma::vec& mu, arma::mat& sigma) {
+   int ncols = sigma.n_cols;
+   arma::vec epsilon = arma::randn(ncols);
+   return mu + arma::chol(sigma, "lower") * epsilon;
 }
 
 // [[Rcpp::export]]
@@ -59,6 +81,7 @@ private:
     vec y;
     mat X;
     vec Xty;
+    mat XtX;
     double sum_y;
   } dat;
   
@@ -71,6 +94,7 @@ private:
   struct ProbitRegParas{
     vec beta;
     vec momentum;
+    vec Z;// for gibbs sampler
     double sigma2_beta;
   } current_paras, proposal_paras, initial_paras;
   
@@ -170,13 +194,16 @@ void BayesProbitReg::set_method(CharacterVector in_method){
   
   if(in_method(0)=="RW"){
     std::cout << "Random Walk" << std::endl;
-    method = 0;
+    method = 1;
   } else if(in_method(0)=="MALA"){
     std::cout << "Metropolis-adjusted Langevin Algorithm" << std::endl;
-    method = 1;
+    method = 2;
   } else if(in_method(0)=="HMC"){
     std::cout << "Hamiltonian Monte Carlo" << std::endl;
-    method = 2;
+    method = 3;
+  } else{//Gibbs
+    std::cout << "Gibbs Sampling" << std::endl;
+    method = 0;
   }
 }
 
@@ -186,6 +213,7 @@ void BayesProbitReg::load_data(const vec& y, const mat& X){
   dat.y = y;
   dat.X = X;
   dat.Xty = X.t()*y;
+  dat.XtX = X.t()*X;
   dat.sum_y = accu(y);
 }
 
@@ -202,7 +230,7 @@ void BayesProbitReg::set_initial_values(const vec& beta, const double& sigma2_be
   proposal_paras = initial_paras;
   update_proposal_vars();
   update_proposal_logden();
-  if(method>0){
+  if(method>1){
     update_proposal_d_logden();
   }
   
@@ -265,14 +293,24 @@ double BayesProbitReg::comp_loglik(const vec& beta){
 
 
 void BayesProbitReg::update_proposal_paras(){
-  //Random Walk
+
+  //Gibbs
   if(method==0){
+    proposal_paras.Z = tnorm(proposal_vars.X_beta, dat.y);
+    arma::mat invcovprior = 1/current_paras.sigma2_beta*arma::eye(dat.X.n_cols, dat.X.n_cols);
+    arma::mat covpost = inv(invcovprior + dat.XtX);
+    arma::vec avgpost = covpost * dat.X.t() * proposal_paras.Z;
+    proposal_paras.beta = mvrnormArma(avgpost, covpost);
+  }
+
+  //Random Walk
+  if(method==1){
     proposal_paras.beta = current_paras.beta + control.step_size*randn<vec>(dat.num_predictors);
     update_proposal_vars();
   }
   
   //MALA
-  if(method==1){
+  if(method==2){
     proposal_paras.beta = current_paras.beta;
     proposal_paras.beta += 0.5*control.step_size_sq*current_d_logden.post;
     proposal_paras.beta += control.step_size*randn<vec>(dat.num_predictors);
@@ -281,7 +319,7 @@ void BayesProbitReg::update_proposal_paras(){
   }
   
   //HMC
-  if(method==2){
+  if(method==3){
     proposal_paras.momentum = randn<vec>(dat.num_predictors);
     current_paras.momentum = proposal_paras.momentum;
     proposal_paras.beta = current_paras.beta;
@@ -307,7 +345,7 @@ void BayesProbitReg::update_proposal_paras(){
 void BayesProbitReg::update_proposal_vars(){
   proposal_vars.X_beta = dat.X*proposal_paras.beta;
   proposal_vars.sum_beta_sq = sum(proposal_paras.beta % proposal_paras.beta);
-  if(method>0){
+  if(method>1){
     proposal_vars.prob = probit(proposal_vars.X_beta, true, false);
   }
 }
@@ -349,13 +387,13 @@ void BayesProbitReg::update_proposal_d_logden(){
 
 void BayesProbitReg::update_log_accept_ratio(){
   log_accept_ratio = proposal_logden.post - current_logden.post;
-  if(method==1){
+  if(method==2){
     vec temp = proposal_paras.beta - current_paras.beta - 0.5*control.step_size_sq*current_d_logden.post;
     log_accept_ratio += 0.5*accu(temp%temp)/control.step_size_sq;
     temp = current_paras.beta - proposal_paras.beta - 0.5*control.step_size_sq*proposal_d_logden.post; 
     log_accept_ratio -= 0.5*accu(temp%temp)/control.step_size_sq;
   }
-  if(method==2){
+  if(method==3){
     log_accept_ratio += 0.5*accu(current_paras.momentum%current_paras.momentum);
     log_accept_ratio -= 0.5*accu(proposal_paras.momentum%proposal_paras.momentum);
   }
@@ -365,10 +403,10 @@ void BayesProbitReg::update_current_paras(){
   
   //update beta;
   double u = randu<double>();
-  if(log(u) < log_accept_ratio){
+  if(method == 0 || log(u) < log_accept_ratio){
     current_paras = proposal_paras;
     current_logden = proposal_logden;
-    if(method > 0){
+    if(method > 1){
       current_d_logden = proposal_d_logden;
     }
     accept_count++;
@@ -382,13 +420,13 @@ void BayesProbitReg::update_current_paras(){
                                                      1.0/(0.5*sum_beta_sq + control.b_gamma)));
   
   update_proposal_logden();
-  if(method > 0){
+  if(method > 1){
     update_proposal_d_logden();
   }
   
   current_paras.sigma2_beta = proposal_paras.sigma2_beta;
   current_logden = proposal_logden;
-  if(method > 0)
+  if(method > 1)
     current_d_logden = proposal_d_logden;
   
 }
@@ -488,7 +526,8 @@ List simul_dat_Probit(int n, double intercept, vec& beta, double X_rho, double X
   for(int j=0; j<X.n_cols;j++){
     X.col(j) += Z;
   }
-  vec prob = probit(intercept + X*beta, true, false);
+  vec link = intercept + X*beta;
+  vec prob = probit(link, true, false);
   vec u = randu<vec>(n);
   vec y = conv_to<vec>::from(u < prob);
   double R2 = var(prob)/var(y);

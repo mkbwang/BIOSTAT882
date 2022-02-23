@@ -40,6 +40,12 @@ RW_fit <- Bayes_Probit_reg(dat$y,dat$X, method="RW",
                             initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept,maxiter_adjust_accept,
                             target_accept = 0.25, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01)
 
+gibbs_fit <- Bayes_Probit_reg(dat$y,dat$X, method="Gibbs",
+                            initial_beta,
+                            initial_sigma2_beta, include_intercept,
+                            initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept,maxiter_adjust_accept,
+                            target_accept = 0.25, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01)
+
 plot(RW_fit$trace$accept_rate,type="l")
 par(mfcol=c(1,1))
 plot(RW_fit$trace$logpost,type="l",ylim=c(-1400,0))
