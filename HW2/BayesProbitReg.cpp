@@ -43,7 +43,7 @@ arma::vec tnorm(arma::vec& x_beta, arma::vec& y){
     if (y(i)==1){
       z(i) = r_truncnorm(x_beta(i), 1, 0, numeric_limits<double>::max());
     } else{
-      z(i) = r_truncnorm(x_beta(i), 1, numeric_limits<double>::min(), 0);
+      z(i) = r_truncnorm(x_beta(i), 1, -numeric_limits<double>::max(), 0);
     }
   }
   return z;
@@ -331,11 +331,12 @@ void BayesProbitReg::update_proposal_paras(){
       if(l < control.leapfrog_steps - 1){
         update_proposal_vars();
         update_proposal_d_logden();
-        proposal_paras.momentum += 0.5*control.step_size*proposal_d_logden.post;
+        proposal_paras.momentum += control.step_size*proposal_d_logden.post;
       }
     }
     update_proposal_vars();
     update_proposal_d_logden();
+    proposal_paras.momentum += 0.5*control.step_size*proposal_d_logden.post;
   }
   
   update_proposal_logden();
