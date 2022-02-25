@@ -10,3 +10,5 @@ class_notes/
 *.Rhistory
 .Rproj.user
 .vscode/
+*.csv
+*.RData

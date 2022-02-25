@@ -28,25 +28,30 @@ HMC_fit <- Bayes_Probit_reg(dat$y,dat$X, method="HMC",
                            initial_beta, initial_sigma2_beta, include_intercept,
                            initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept, maxiter_adjust_accept,
                            target_accept = 0.65, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01, leapfrog_steps = 20)
-
+MALA_start <- proc.time()
 MALA_fit <- Bayes_Probit_reg(dat$y,dat$X, method="MALA",
                             initial_beta, initial_sigma2_beta, include_intercept,
                             initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept, maxiter_adjust_accept,
                             target_accept = 0.50, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01)
+MALA_duration <- proc.time() - MALA_start
 
+RW_start <- proc.time()
 RW_fit <- Bayes_Probit_reg(dat$y,dat$X, method="RW",
                             initial_beta, 
                             initial_sigma2_beta, include_intercept,
                             initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept,maxiter_adjust_accept,
                             target_accept = 0.25, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01)
+RW_duration <- proc.time() - RW_start
 
+gibbs_start <- proc.time()
 gibbs_fit <- Bayes_Probit_reg(dat$y,dat$X, method="Gibbs",
                             initial_beta,
                             initial_sigma2_beta, include_intercept,
                             initial_intercept, mcmc_sample, burnin, thinning, step_adjust_accept,maxiter_adjust_accept,
                             target_accept = 0.25, initial_step_size = 0.01, a_gamma = 0.01, b_gamma=0.01)
+gibbs_duration <- proc.time() - gibbs_start
 
-plot(RW_fit$trace$accept_rate,type="l")
+plot(HMC_fit$trace$accept_rate,type="l")
 par(mfcol=c(1,1))
 plot(RW_fit$trace$logpost,type="l",ylim=c(-1400,0))
 lines(MALA_fit$trace$logpost,col="red")
@@ -62,6 +67,7 @@ hist(RW_fit$mcmc$sigma2_beta,xlim=c(0,10),ylim=c(0,300))
 sum((MALA_fit$post_mean$beta - c(dat$intercept,dat$beta))^2)
 sum((HMC_fit$post_mean$beta - c(dat$intercept,dat$beta))^2)
 sum((RW_fit$post_mean$beta - c(dat$intercept,dat$beta))^2)
+sum((gibbs_fit$post_mean$beta - c(dat$intercept,dat$beta))^2)
 sum((glm_fit$coefficients - c(dat$intercept,dat$beta))^2)
 
 
