@@ -12,3 +12,5 @@ class_notes/
 .vscode/
 *.csv
 *.RData
+*.bbl
+*.blg

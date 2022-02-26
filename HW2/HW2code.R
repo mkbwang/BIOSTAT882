@@ -13,7 +13,7 @@ initial_sigma2_beta = 1000
 include_intercept = TRUE
 initial_intercept = 0.0
 
-mcmc_sample = 2000
+mcmc_sample = 1000
 
 burnin_HMC = 20000
 burnin_MALA = 40000
@@ -43,7 +43,7 @@ plot(RW_fit$trace$loglik, type='l')
 plot(RW_fit$trace$accept_rate, type='l')
 RW_effsizes <- effectiveSize(t(RW_fit$mcmc$beta))
 
-save(RW_fit, RW_duration, file='HW2/RW_fit_2000.RData')
+save(RW_fit, RW_duration, file='HW2/RW_fit.RData')
 
 MALA_start <- proc.time()
 MALA_fit <- Bayes_Probit_reg(mnist_train_y, mnist_train_x, method="MALA",
@@ -58,7 +58,7 @@ plot(MALA_fit$trace$loglik, type='l')
 plot(MALA_fit$trace$accept_rate, type='l')
 MALA_effsizes <- effectiveSize(t(MALA_fit$mcmc$beta))
 mean(MALA_effsizes)
-save(MALA_fit, MALA_duration, file='HW2/MALA_fit_2000.RData')
+save(MALA_fit, MALA_duration, file='HW2/MALA_fit.RData')
 
 
 HMC_start <- proc.time()
@@ -74,7 +74,7 @@ plot(HMC_fit$trace$loglik, type='l')
 plot(HMC_fit$trace$accept_rate, type='l')
 HMC_effsizes <- effectiveSize(t(HMC_fit$mcmc$beta))
 mean(HMC_effsizes)
-save(HMC_fit, HMC_duration, file='HW2/HMC_fit_2000.RData')
+save(HMC_fit, HMC_duration, file='HW2/HMC_fit.RData')
 
 Gibbs_start <- proc.time()
 Gibbs_fit <- Bayes_Probit_reg(mnist_train_y, mnist_train_x, method="Gibbs",
@@ -87,5 +87,4 @@ plot(Gibbs_fit$trace$loglik, type='l')
 plot(Gibbs_fit$trace$accept_rate, type='l')
 Gibbs_effsizes <- effectiveSize(t(Gibbs_fit$mcmc$beta))
 mean(Gibbs_effsizes)
-
-save(Gibbs_fit, Gibbs_duration, file='HW2/Gibbs_model_2000.RData')
+save(Gibbs_fit, Gibbs_duration, file='HW2/Gibbs_model.RData')
