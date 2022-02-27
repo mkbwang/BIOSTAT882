@@ -259,6 +259,76 @@ Based on these derivations, we have the Gibbs sampling algorithm
 	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\beta}_0, \bm{\beta}_1, \cdots, \bm{\beta}_N\}$, $\{ \sigma_{\bm{\beta}, 0}^2,  \sigma_{\bm{\beta}, 1}^2, \cdots  \sigma_{\bm{\beta}, N}^2\}$
 \end{breakablealgorithm}
 
+I applied these four algorithms to 100 MNIST images in the training set corresponding to digits 0 and 6. Each observation has $28\times 28=784$ pixels. The probit regression included an intercept, so there were in total 785 coefficients to estimate. The setup for the four algorithms is shown in table \ref{MCMCsetup}. I took 1000 coefficient draws from each algorithm for prediction of the test set. The test set had 1000 observations.
+
+Figure \ref{likandacceptance} provides the likelihood trace plot for the four MCMC methods and the acceptance trace plot for three out of the four MCMC methods(The acceptance rate was always one for Gibbs Sampler). We can confirm that all the methods eventually converged, although the number of iterations and time needed were very different. Random walk took significantly longer iterations to reach the posterior distribution, but it took the shortest time. On the other hand, Hamiltonian Monte Carlo and Gibbs Sampler needed much fewer iterations but they took significantly longer time to run. From the average effective size across all the coefficients, we can see that Gibbs Sampler and Hamiltonian Monte Carlo had far better mixing  than MALA and random walk.
+
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{ccccc}
+		\toprule
+		& RW & HMC & MALA & Gibbs\\
+		\midrule
+		Burnin & 400000 & 20000 & 40000 & 1000\\
+		Target Acceptance Rate & 0.25 & 0.7 & 0.5 & -\\
+		Initial Step Size & $1\times 10^{-8}$ & $1\times 10^{-4}$ & $1\times 10^{-6}$ & -\\
+		Thinning & 100 & 10 & 20 & 3\\
+		\midrule
+		Mean Effective Size(SD) & 42.5(8.6) & 681(123) & 176(30) & 916(205)\\
+		Time(s) & 47.2 & 392.9 & 73.73 & 545.3\\
+		\bottomrule  
+	\end{tabular}
+	\caption{Setup and performance statistics for four MCMC methods. Average effective size refers to the mean effective size of 785 covariate coefficients across 1000 samples for each sampling method.}\label{MCMCsetup}
+\end{table}
+
+\begin{figure}[htbp]
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{RWlik.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{MALAlik.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{HMClik.eps}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{gibbslik.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{RWaccept.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{MALAaccept.eps}
+	\end{subfigure}
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{HMCaccept.eps}
+	\end{subfigure}
+	
+	\caption{Likelihood Trace Plots for the Four MCMC Methods and Acceptance Rate Trace Plots for Random Walk, MALA and HMC }\label{likandacceptance}
+\end{figure}
+
+
+
+Finally let's check the prediction performance of the estimated coefficients from the four MCMC methods. We provide a prediction probability from each coefficient sample for each individual test image. The image that had the biggest variance of prediction probabilities between the four methods was shown in Figure \ref{exampleimg}. The probability of this image being a 6 over 0 was 0.669 for random walk, 0.497 for MALA, 0.514 for Hamiltonian Monte Carlo and 0.493 for Gibbs Sampler.
+
+To compare the overall prediction performance between the four methods, I calculate the area under the receiver operating characteristics(AUROC) for each sample coefficient draw from every MCMC estimation method. The distribution of AUROC for each MCMC method is presented as violin plots in Figure \ref{auroc}. All the four methods generate high quality coefficient sample draws that can achieve AUROC larger than 0.9.
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.5\linewidth]{exampleimg.eps}
+	\caption{This image has the largest variance of prediction probability among four different MCMC methods. The probability of this image being a 6 over 0 was 0.669 for random walk, 0.497 for MALA, 0.514 for Hamiltonian Monte Carlo and 0.493 for Gibbs Sampler.}\label{exampleimg}
+	\includegraphics[width=0.6\linewidth]{AUROC.eps}
+	\caption{The AUROC scores of each coefficient sample draw are visualized on the violin plots by the MCMC methods. The horizontal lines represent the 25\%, 50\% and 75\% percentile. All the coefficient draws can achieve almost perfect prediction performance with AUC larger than 0.9.}\label{auroc}
+\end{figure}
+
+
+
+
 \bibliographystyle{plain}
 \bibliography{HW2citation}
 
