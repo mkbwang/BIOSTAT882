@@ -85,7 +85,7 @@ The derivative of log prior over $\bm{\beta}$ is
 
 \[ \frac{\partial}{\partial \bm{\beta}}\log \pi(\bm{\beta}, \sigma^2_{\bm{\beta}}; a,b) = \frac{-\bm{\beta}}{\sigma^2_{\bm{\beta}}} \]
 
-We notice that the prior of $\sigma^2_{\bm{\beta}}$,  $\pi\left(\sigma^2_{\bm{\beta}}; a,b\right) \sim \text{InvGamma}(a, b)$ and the posterior $\pi\left(\left. \sigma^2_{\bm{\beta}}\right\vert \bm{\beta}; a,b\right) \sim \text{InvGamma}\left(a+p, b+\frac{1}{2}\bm{\beta}^\top \bm{\beta}\right)$ thanks to the conjugacy between normal distribution and inverse gamma distribution. Therefore we only need MCMC methods to generate new $\bm{\beta}$s, then draw $\sigma^2_{\bm{\beta}}$ based on the posterior distribution accordingly.
+We notice that the prior  $\pi\left(\sigma^2_{\bm{\beta}}; a,b\right) \sim \text{InvGamma}(a, b)$ and the posterior $\pi\left(\left. \sigma^2_{\bm{\beta}}\right\vert \bm{\beta}; a,b\right) \sim \text{InvGamma}\left(a+p, b+\frac{1}{2}\bm{\beta}^\top \bm{\beta}\right)$ thanks to the conjugacy between normal distribution and inverse gamma distribution. Therefore we only need MCMC methods to generate new $\bm{\beta}$s, then draw $\sigma^2_{\bm{\beta}}$ based on the posterior distribution accordingly.
 
 The log posterior of $\bm{\beta}$ is the sum of log likelihood and the log prior. So is the derivative of log posterior.
 
@@ -108,7 +108,7 @@ The derivations above have provided us with the necessary ingredients for MCMC w
 		\State $\sigma_{\beta, 0}^2 \gets 1000$
 		\State $A \gets 0$ \Comment{Counter of acceptance in recent iterations}
 		\For{$i \gets 0$ to $N-1$}
-			\State $\bm{z} \gets \mathcal{N}(\bm{0}, \epsilon^2\cdot \mathbb{I}_p)$
+			\State $\bm{z} \gets \mathcal{N}(\bm{0}, \epsilon^2\mathbb{I}_p)$
 			\State $\bm{\beta}' \gets \bm{\beta}_i + \bm{z}$
 			\State $U \gets \text{Uniform}(0, 1)$
 			\If {$\log(U) < \log(\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right)) - \log(\pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right))$}
@@ -144,8 +144,8 @@ The derivations above have provided us with the necessary ingredients for MCMC w
 		\State $\sigma_{\beta, 0}^2 \gets 1000$
 		\State $A \gets 0$ \Comment{Counter of acceptance in recent iterations}
 		\For{$i \gets 0$ to $N-1$}
-		\State $\bm{z} \gets \mathcal{N}(\bm{0}, \epsilon^2\cdot \mathbb{I}_p)$
-		\State $\bm{\beta}' \gets \bm{\beta}_i +\frac{1}{2}\epsilon^2\cdot \nabla_{\bm{\beta}}\log \pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right) + \bm{z}$
+		\State $\bm{z} \gets \mathcal{N}(\bm{0}, \epsilon^2\mathbb{I}_p)$
+		\State $\bm{\beta}' \gets \bm{\beta}_i +\frac{1}{2}\epsilon^2\nabla_{\bm{\beta}}\log \pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right) + \bm{z}$
 		\State $U \gets \text{Uniform}(0, 1)$
 		\If {$\log(U) < \log\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right) - \log\pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right) + $ $\frac{1}{2\epsilon^2}\left\Vert \bm{\beta}' - \bm{\beta}_i - \frac{1}{2} \epsilon^2\nabla_{\bm{\beta}}\log\pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right)  \right\Vert^2 - \frac{1}{2\epsilon^2}\left\Vert \bm{\beta}_i - \bm{\beta}' - \frac{1}{2} \epsilon^2\nabla_{\bm{\beta}}\log\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right)  \right\Vert^2  $}
 		\State $\bm{\beta}_{i+1} \gets \bm{\beta}'$
@@ -219,7 +219,7 @@ in which $\phi(z_i; \bm{x_i}^\top \bm{\beta}, 1)$ is a normal distribution with 
 
 We have already got the posterior distribution of $\sigma_{\bm{\beta}}^2$ given $\bm{\beta}$, therefore we still need to derive the conditional distribution of $\bm{\beta}$ and $\bm{Z}$.
 
-\[  \pi\left(\left.\bm{z}_i\right\vert y_i, \bm{x}_i, \bm{\beta} \right) = \begin{cases}
+\[  \pi\left(\left.z_i\right\vert y_i, \bm{x}_i, \bm{\beta} \right) = \begin{cases}
 	\text{truncnorm}(\bm{x}_i^\top \bm{\beta}, 1)\qquad \text{at left by 0 if } y_i=1\\
 	\text{truncnorm}(\bm{x}_i^\top \bm{\beta}, 1)\qquad \text{at right by 0 if } y_i=0
 \end{cases}\]
@@ -261,7 +261,7 @@ Based on these derivations, we have the Gibbs sampling algorithm
 
 I applied these four algorithms to 100 MNIST images in the training set corresponding to digits 0 and 6. Each observation has $28\times 28=784$ pixels. The probit regression included an intercept, so there were in total 785 coefficients to estimate. The setup for the four algorithms is shown in table \ref{MCMCsetup}. I took 1000 coefficient draws from each algorithm for prediction of the test set. The test set had 1000 observations.
 
-Figure \ref{likandacceptance} provides the likelihood trace plot for the four MCMC methods and the acceptance trace plot for three out of the four MCMC methods(The acceptance rate was always one for Gibbs Sampler). We can confirm that all the methods eventually converged, although the number of iterations and time needed were very different. Random walk took significantly longer iterations to reach the posterior distribution, but it took the shortest time. On the other hand, Hamiltonian Monte Carlo and Gibbs Sampler needed much fewer iterations but they took significantly longer time to run. From the average effective size across all the coefficients, we can see that Gibbs Sampler and Hamiltonian Monte Carlo had far better mixing  than MALA and random walk.
+Figure \ref{likandacceptance} provides the likelihood trace plot for the four MCMC methods and the acceptance trace plot for three out of the four MCMC methods(the acceptance rate was always one for Gibbs Sampler). We can confirm that all the methods eventually converged, although the number of iterations and time needed were very different. Random walk took significantly longer iterations to reach the posterior distribution, but it took the shortest time. On the other hand, Hamiltonian Monte Carlo and Gibbs Sampler needed much fewer iterations but they took significantly longer time to run. From the average effective size across all the coefficients, we can see that Gibbs Sampler and Hamiltonian Monte Carlo had better mixing  than MALA and random walk.
 
 \begin{table}[htbp]
 	\centering
@@ -316,7 +316,7 @@ Figure \ref{likandacceptance} provides the likelihood trace plot for the four MC
 
 Finally let's check the prediction performance of the estimated coefficients from the four MCMC methods. We provide a prediction probability from each coefficient sample for each individual test image. The image that had the biggest variance of prediction probabilities between the four methods was shown in Figure \ref{exampleimg}. The probability of this image being a 6 over 0 was 0.669 for random walk, 0.497 for MALA, 0.514 for Hamiltonian Monte Carlo and 0.493 for Gibbs Sampler.
 
-To compare the overall prediction performance between the four methods, I calculate the area under the receiver operating characteristics(AUROC) for each sample coefficient draw from every MCMC estimation method. The distribution of AUROC for each MCMC method is presented as violin plots in Figure \ref{auroc}. All the four methods generate high quality coefficient sample draws that can achieve AUROC larger than 0.9.
+To compare the overall prediction performance between the four methods, I calculate the area under the receiver operating characteristics curve(AUROC) for each sample coefficient draw from every MCMC estimation method. The bigger the area the better the prediction performance is. The distribution of AUROC for each MCMC method is presented as violin plots in Figure \ref{auroc}. All the four methods generate high quality coefficient sample draws that can achieve AUROC larger than 0.9.
 
 \begin{figure}[htbp]
 	\centering
