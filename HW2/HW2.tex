@@ -1,0 +1,336 @@
+\documentclass[12pt]{article}
+\usepackage{paralist,amsmath,amssymb,thumbpdf,lmodern}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{physics}
+\usepackage{amsfonts}
+\usepackage{bbm}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{diagbox}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{caption}
+\usepackage{bm}
+\usepackage{makecell}
+\usepackage{ifxetex,ifluatex}
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname IncludeInRelease\endcsname\relax
+  \usepackage{fixltx2e}
+\fi
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\usepackage{newtxtext,newtxmath}
+
+\title{Biostat 882 HW2}
+\date{}
+\author{Mukai Wang 98830336}
+
+\makeatletter
+\newenvironment{breakablealgorithm}
+{% \begin{breakablealgorithm}
+		\begin{center}
+			\refstepcounter{algorithm}% New algorithm
+			\hrule height.8pt depth0pt \kern2pt% \@fs@pre for \@fs@ruled
+			\renewcommand{\caption}[2][\relax]{% Make a new \caption
+				{\raggedright\textbf{\fname@algorithm~\thealgorithm} ##2\par}%
+				\ifx\relax##1\relax % #1 is \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
+				\else % #1 is not \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
+				\fi
+				\kern2pt\hrule\kern2pt
+			}
+		}{% \end{breakablealgorithm}
+		\kern2pt\hrule\relax% \@fs@post for \@fs@ruled
+	\end{center}
+}
+\makeatother
+
+\usepackage{Sweave}
+\begin{document}
+\maketitle
+
+We first derive the log likelihood , log prior and log posterior for coefficient vector $\beta$. Given $n$ observations $y_1, y_2, \cdots y_n$ and their covariates $\bm{x}_1, \bm{x}_2, \cdots \bm{x}_n$, we have the log likelihood
+
+\[ \ell(\bm{\beta}; \bm{X}, \bm{Y}) = \sum_{i=1}^{n} \left[ y_i \log \Phi(\bm{x}_i^\top \bm{\beta}) + (1-y_i) \log \left(1 - \Phi(\bm{x}_i^\top \bm{\beta})\right)\right] \]
+
+ in which $\Phi(\bm{x}_i^\top \bm{\beta}) = \int_{-\infty}^{\bm{x}_i^\top \bm{\beta}} \exp \left(-t^2 / 2 \right) / \sqrt{2\pi} \diff t$. The derivative is 
+ \[\frac{\partial \ell}{\partial \bm{\beta}} = \sum_{i=1}^{n} \left[ \frac{y_i}{\Phi(\bm{x}_i^\top \bm{\beta})} \frac{\exp (-(\bm{x}_i^\top \bm{\beta})^2 / 2)}{\sqrt{2\pi}}\bm{x}_i + \frac{1-y_i}{1-\Phi(\bm{x}_i^\top \bm{\beta})} \frac{-\exp (-(\bm{x}_i^\top \bm{\beta})^2 / 2)}{\sqrt{2\pi}} \bm{x}_i \right] \]
+The log prior is
+\[ \log \pi(\bm{\beta}, \sigma^2_{\bm{\beta}}; a,b) = \sum_{j=1}^{p}\left[-\frac{1}{2}\log(2\pi\sigma^2_{\bm{\beta}}) - \frac{\beta^2_j}{2\sigma^2_{\bm{\beta}} } \right] + a\cdot \log(b) - \log\Gamma(a) - (a+1)\log \sigma^2_{\bm{\beta}} - \frac{b}{\sigma^2_{\bm{\beta}}} \]
+The derivative of log prior over $\bm{\beta}$ is
+
+\[ \frac{\partial}{\partial \bm{\beta}}\log \pi(\bm{\beta}, \sigma^2_{\bm{\beta}}; a,b) = \frac{-\bm{\beta}}{\sigma^2_{\bm{\beta}}} \]
+
+We notice that the prior  $\pi\left(\sigma^2_{\bm{\beta}}; a,b\right) \sim \text{InvGamma}(a, b)$ and the posterior $\pi\left(\left. \sigma^2_{\bm{\beta}}\right\vert \bm{\beta}; a,b\right) \sim \text{InvGamma}\left(a+p, b+\frac{1}{2}\bm{\beta}^\top \bm{\beta}\right)$ thanks to the conjugacy between normal distribution and inverse gamma distribution. Therefore we only need MCMC methods to generate new $\bm{\beta}$s, then draw $\sigma^2_{\bm{\beta}}$ based on the posterior distribution accordingly.
+
+The log posterior of $\bm{\beta}$ is the sum of log likelihood and the log prior. So is the derivative of log posterior.
+
+
+\begin{align*}
+	\log \pi \left(\left.\bm{\beta} \right\vert  \bm{X}, \bm{Y} \right)&=  \ell(\bm{\beta}; \bm{X}, \bm{Y}) + \log \pi(\bm{\beta}, \sigma^2_{\bm{\beta}}; a,b) \\
+	\frac{\partial}{\partial \bm{\beta}} \log \pi \left(\left.\bm{\beta} \right\vert  \bm{X}, \bm{Y} \right) &=  \frac{\partial}{\partial \bm{\beta}}\ell(\bm{\beta}; \bm{X}, \bm{Y}) + \frac{\partial}{\partial \bm{\beta}}\log \pi(\bm{\beta}, \sigma^2_{\bm{\beta}}; a,b)
+\end{align*}
+
+The derivations above have provided us with the necessary ingredients for MCMC with random walk(seudocode \ref{rw}), Metropolis Adjusted Langevin(pseudocode \ref{MALA}) and Hamiltonian Monte Carlo(pseudocode \ref{HMC}) methods. 
+
+
+
+\begin{breakablealgorithm}
+	\caption{Random Walk}\label{rw}
+	\hspace*{\algorithmicindent} \textbf{Input}   Response Variable $ \bm{Y} = \begin{bmatrix}y_1 & y_2 & \cdots & y_n\end{bmatrix}^\top $, Covariate vectors $\bm{X} = \begin{bmatrix}\bm{x}_1 & \bm{x}_2 & \cdots & \bm{x}_n \end{bmatrix}^\top$ with dimension $p$,  initial step size $\epsilon_0^2$, inverse Gamma distribution parameter $a$, $b$, Chain Length $N$, step size update period $T$, target acceptance rate $r$ 
+	\begin{algorithmic}[1]
+		\State $\epsilon \gets \epsilon_0$
+		\State $\bm{\beta}_0 \gets \bm{0}$
+		\State $\sigma_{\beta, 0}^2 \gets 1000$
+		\State $A \gets 0$ \Comment{Counter of acceptance in recent iterations}
+		\For{$i \gets 0$ to $N-1$}
+			\State $\bm{z} \gets \mathcal{N}(\bm{0}, \epsilon^2\mathbb{I}_p)$
+			\State $\bm{\beta}' \gets \bm{\beta}_i + \bm{z}$
+			\State $U \gets \text{Uniform}(0, 1)$
+			\If {$\log(U) < \log(\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right)) - \log(\pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right))$}
+				\State $\bm{\beta}_{i+1} \gets \bm{\beta}'$
+				\State $A \gets A+1$
+			\Else
+				\State $\bm{\beta}_{i+1} \gets \bm{\beta}_i$
+			\EndIf
+			\State $\sigma_{\bm{\beta}, i+1}^2 \gets \text{InvGamma}\left(a+p, b+\frac{1}{2}\bm{\beta}_{i+1}^\top \bm{\beta}_{i+1} \right)$\Comment{Directly Sample from Posterior Distribution}
+			\If {$i+1$ mod $T = 0$}
+				\State $k \gets 1+1000(A/T - r)^3$
+				\State $A \gets 0$
+				\If {$k > 1.1$}
+					\State $\epsilon \gets 1.1\epsilon$
+				\ElsIf {$k<0.9$}
+					\State $\epsilon \gets 0.9\epsilon$
+				\Else 
+					\State $\epsilon \gets r\epsilon$
+				\EndIf
+			\EndIf
+		\EndFor 
+	\end{algorithmic}
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\beta}_0, \bm{\beta}_1, \cdots, \bm{\beta}_N\}$, $\{ \sigma_{\bm{\beta}, 0}^2,  \sigma_{\bm{\beta}, 1}^2, \cdots  \sigma_{\bm{\beta}, N}^2\}$
+\end{breakablealgorithm}
+
+
+\begin{breakablealgorithm}
+	\caption{Metropolis Adjusted Langevin}\label{MALA}
+	\hspace*{\algorithmicindent} \textbf{Input}   Response Variable $ \bm{Y} = \begin{bmatrix}y_1 & y_2 & \cdots & y_n\end{bmatrix}^\top $, Covariate vectors $\bm{X} = \begin{bmatrix}\bm{x}_1 & \bm{x}_2 & \cdots & \bm{x}_n \end{bmatrix}^\top$ with dimension $p$,  initial step size $\epsilon_0^2$, inverse Gamma distribution parameter $a$, $b$, Chain Length $N$, step size update period $T$, target acceptance rate $r$ 
+	\begin{algorithmic}[1]
+		\State $\epsilon \gets \epsilon_0$
+		\State $\bm{\beta}_0 \gets \bm{0}$
+		\State $\sigma_{\beta, 0}^2 \gets 1000$
+		\State $A \gets 0$ \Comment{Counter of acceptance in recent iterations}
+		\For{$i \gets 0$ to $N-1$}
+		\State $\bm{z} \gets \mathcal{N}(\bm{0}, \epsilon^2\mathbb{I}_p)$
+		\State $\bm{\beta}' \gets \bm{\beta}_i +\frac{1}{2}\epsilon^2\nabla_{\bm{\beta}}\log \pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right) + \bm{z}$
+		\State $U \gets \text{Uniform}(0, 1)$
+		\If {$\log(U) < \log\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right) - \log\pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right) + $ $\frac{1}{2\epsilon^2}\left\Vert \bm{\beta}' - \bm{\beta}_i - \frac{1}{2} \epsilon^2\nabla_{\bm{\beta}}\log\pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right)  \right\Vert^2 - \frac{1}{2\epsilon^2}\left\Vert \bm{\beta}_i - \bm{\beta}' - \frac{1}{2} \epsilon^2\nabla_{\bm{\beta}}\log\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right)  \right\Vert^2  $}
+		\State $\bm{\beta}_{i+1} \gets \bm{\beta}'$
+		\State $A \gets A+1$
+		\Else
+		\State $\bm{\beta}_{i+1} \gets \bm{\beta}_i$
+		\EndIf
+		\State $\sigma_{\bm{\beta}, i+1}^2 \gets \text{InvGamma}\left(a+p, b+\frac{1}{2}\bm{\beta}_{i+1}^\top \bm{\beta}_{i+1} \right)$\Comment{Directly Sample from Posterior Distribution}
+		\If {$i+1$ mod $T = 0$}
+		\State $k \gets 1+1000(A/T - r)^3$
+		\State $A \gets 0$
+		\If {$k > 1.1$}
+		\State $\epsilon \gets 1.1\epsilon$
+		\ElsIf {$k<0.9$}
+		\State $\epsilon \gets 0.9\epsilon$
+		\Else 
+		\State $\epsilon \gets r\epsilon$
+		\EndIf
+		\EndIf
+		\EndFor 
+	\end{algorithmic}
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\beta}_0, \bm{\beta}_1, \cdots, \bm{\beta}_N\}$, $\{ \sigma_{\bm{\beta}, 0}^2,  \sigma_{\bm{\beta}, 1}^2, \cdots  \sigma_{\bm{\beta}, N}^2\}$
+\end{breakablealgorithm}
+
+
+\begin{breakablealgorithm}
+	\caption{Hamiltonian Monte Carlo}\label{HMC}
+	\hspace*{\algorithmicindent} \textbf{Input}   Response Variable $ \bm{Y} = \begin{bmatrix}y_1 & y_2 & \cdots & y_n\end{bmatrix}^\top $, Covariate vectors $\bm{X} = \begin{bmatrix}\bm{x}_1 & \bm{x}_2 & \cdots & \bm{x}_n \end{bmatrix}^\top$ with dimension $p$,  initial step size $\epsilon_0^2$, inverse Gamma distribution parameter $a$, $b$, Chain Length $N$, step size update period $T$, target acceptance rate $r$ 
+	\begin{algorithmic}[1]
+		\State $\epsilon \gets \epsilon_0$
+		\State $\bm{\beta}_0 \gets \bm{0}$
+		\State $\sigma_{\beta, 0}^2 \gets 1000$
+		\State $A \gets 0$ \Comment{Counter of acceptance in recent iterations}
+		\For{$i \gets 0$ to $N-1$}
+		
+		\State $\bm{m} \gets \mathcal{N}(\bm{0}, \epsilon^2 \mathbb{I}_p)$ \Comment{Generate Momemtum}
+		\State $ \bm{\beta}' \gets \bm{\beta}_i $
+		\State $\bm{m}' \gets \bm{m}' + \frac{1}{2} \epsilon \nabla_{\bm{\beta}}\log\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right) $
+		\For {$j \gets 0$ to 20}
+			\State $\bm{\beta}' \gets \bm{\beta}' + \epsilon\bm{m}'$
+			\State $ \bm{m}' \gets \bm{m}' + \epsilon \nabla_{\bm{\beta}}\log\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right) $
+		\EndFor
+		\State $U \gets \text{Uniform}(0, 1)$
+		\If {$\log(U) < \log\pi\left(\left.\bm{\beta}'\right\vert \bm{X},\bm{Y}\right) - \log\pi\left(\left.\bm{\beta}_i\right\vert \bm{X},\bm{Y}\right) + \frac{1}{2}\bm{m}'^\top \bm{m}' - \frac{1}{2}\bm{m}^\top \bm{m}$ }
+		\State $\bm{\beta}_{i+1} \gets \bm{\beta}'$
+		\State $A \gets A+1$
+		\Else
+		\State $\bm{\beta}_{i+1} \gets \bm{\beta}_i$
+		\EndIf
+		\State $\sigma_{\bm{\beta}, i+1}^2 \gets \text{InvGamma}\left(a+p, b+\frac{1}{2}\bm{\beta}_{i+1}^\top \bm{\beta}_{i+1} \right)$\Comment{Directly Sample from Posterior Distribution}
+		\If {$i+1$ mod $T = 0$}
+		\State $k \gets 1+1000(A/T - r)^3$
+		\State $A \gets 0$
+		\If {$k > 1.1$}
+		\State $\epsilon \gets 1.1\epsilon$
+		\ElsIf {$k<0.9$}
+		\State $\epsilon \gets 0.9\epsilon$
+		\Else 
+		\State $\epsilon \gets r\epsilon$
+		\EndIf
+		\EndIf
+		\EndFor 
+	\end{algorithmic}
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\beta}_0, \bm{\beta}_1, \cdots, \bm{\beta}_N\}$, $\{ \sigma_{\bm{\beta}, 0}^2,  \sigma_{\bm{\beta}, 1}^2, \cdots  \sigma_{\bm{\beta}, N}^2\}$
+\end{breakablealgorithm}
+
+In terms of Gibbs Sampling method, we need to introduce an auxiliary variable $\bm{Z}$. According to Albert and Chib\cite{gibbs}, the posterior distribution of $\pi\left(\left.\bm{\beta}\right\vert \bm{X}, \bm{Y}, \sigma_{\bm{\beta}}^2 \right)$ can be written as $\pi\left(\left.\bm{\beta}, \bm{Z}\right\vert \bm{X}, \bm{Y}, \sigma_{\bm{\beta}}^2\right)$ if the joint distribution is defined such that
+\[ \pi\left(\left.\bm{\beta}, \bm{Z}, \sigma_{\bm{\beta}}^2\right\vert \bm{X}, \bm{Y}\right) \propto \pi(\bm{\beta}, \sigma^2_{\bm{\beta}}; a,b) \prod_{i=1}^{n} \{\mathbbm{1}(z_i > 0)\cdot \mathbbm{1}(y_i = 1) +\mathbbm{1}(z_i <= 0)\cdot \mathbbm{1}(y_i = 0) \} \phi(z_i; \bm{x_i}^\top \bm{\beta}, 1) \]
+
+in which $\phi(z_i; \bm{x_i}^\top \bm{\beta}, 1)$ is a normal distribution with mean of $\bm{x_i}^\top \bm{\beta}$ and standard deviation of 1.
+
+We have already got the posterior distribution of $\sigma_{\bm{\beta}}^2$ given $\bm{\beta}$, therefore we still need to derive the conditional distribution of $\bm{\beta}$ and $\bm{Z}$.
+
+\[  \pi\left(\left.z_i\right\vert y_i, \bm{x}_i, \bm{\beta} \right) = \begin{cases}
+	\text{truncnorm}(\bm{x}_i^\top \bm{\beta}, 1)\qquad \text{at left by 0 if } y_i=1\\
+	\text{truncnorm}(\bm{x}_i^\top \bm{\beta}, 1)\qquad \text{at right by 0 if } y_i=0
+\end{cases}\]
+
+Because we have prior distribution for $\bm{\beta}$ as $\bm{\beta} \sim \mathcal{N}(\bm{0}, \sigma^2_{\bm{\beta}} \mathbb{I}_p)$, the posterior is  
+
+\begin{align*}
+	\pi \left(\left.\bm{\beta}\right\vert \bm{X}, \bm{Y}, \bm{Z}, \sigma^2_{\bm{\beta}} \right) &\sim \mathcal{N}(\tilde{\bm{\beta}}, \tilde{\bm{B}})\\
+	\tilde{\bm{\beta}} &= \left(\sigma^{-2}_{\bm{\beta}} \mathbb{I}_p +\bm{X}^\top \bm{X}\right)^{-1}\bm{X}^\top \bm{Z}\\
+	\tilde{\bm{B}} &= \left(\sigma^{-2}_{\bm{\beta}} \mathbb{I}_p +\bm{X}^\top \bm{X}\right)^{-1}
+\end{align*}
+
+Based on these derivations, we have the Gibbs sampling algorithm
+
+\begin{breakablealgorithm}
+	\caption{Gibbs Sampler}\label{Gibbs}
+	\hspace*{\algorithmicindent} \textbf{Input}   Response Variable $ \bm{Y} = \begin{bmatrix}y_1 & y_2 & \cdots & y_n\end{bmatrix}^\top $, Covariate vectors $\bm{X} = \begin{bmatrix}\bm{x}_1 & \bm{x}_2 & \cdots & \bm{x}_n \end{bmatrix}^\top$ with dimension $p$,  inverse Gamma distribution parameter $a$, $b$, Chain Length $N$
+	
+	\begin{algorithmic}[1]
+		\State $\bm{\beta}_0 \gets \bm{0}$
+		\State $\sigma^2_{\bm{\beta}} \gets 1000$
+		\For{$i \gets 0$ to $N-1$}
+			\For{$j \gets 1$ to $n$}
+				\If{$y_j > 0$}
+					\State $Z_j \gets \text{truncnorm}(\bm{x}_j^\top \bm{\beta}, 1, 0, \infty)$
+				\Else
+					\State $Z_j \gets \text{truncnorm}(\bm{x}_j^\top \bm{\beta}, 1, -\infty, 0)$
+				\EndIf
+			\EndFor
+			\State $\tilde{\bm{\beta}} \gets \left(\sigma^{-2}_{\bm{\beta}, i} \mathbb{I}_p +\bm{X}^\top \bm{X}\right)^{-1}\bm{X}^\top \bm{Z}$
+			\State $\tilde{\bm{B}} \gets \left(\sigma^{-2}_{\bm{\beta}, i} \mathbb{I}_p +\bm{X}^\top \bm{X}\right)^{-1}$
+			\State $\bm{\beta}_{i+1} \gets \mathcal{N}(\tilde{\bm{\beta}}, \tilde{\bm{B}})$
+			\State $\sigma^2_{\bm{\beta}, i+1} \gets \text{InvGamma}\left(a+p, b+\frac{1}{2}\bm{\beta}_{i+1}^\top \bm{\beta}_{i+1}\right) $
+		\EndFor	
+	\end{algorithmic}
+	
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\beta}_0, \bm{\beta}_1, \cdots, \bm{\beta}_N\}$, $\{ \sigma_{\bm{\beta}, 0}^2,  \sigma_{\bm{\beta}, 1}^2, \cdots  \sigma_{\bm{\beta}, N}^2\}$
+\end{breakablealgorithm}
+
+I applied these four algorithms to 100 MNIST images in the training set corresponding to digits 0 and 6. Each observation has $28\times 28=784$ pixels. The probit regression included an intercept, so there were in total 785 coefficients to estimate. The setup for the four algorithms is shown in table \ref{MCMCsetup}. I took 1000 coefficient draws from each algorithm for prediction of the test set. The test set had 1000 observations.
+
+Figure \ref{likandacceptance} provides the likelihood trace plot for the four MCMC methods and the acceptance trace plot for three out of the four MCMC methods(the acceptance rate was always one for Gibbs Sampler). We can confirm that all the methods eventually converged, although the number of iterations and time needed were very different. Random walk took significantly longer iterations to reach the posterior distribution, but it took the shortest time. On the other hand, Hamiltonian Monte Carlo and Gibbs Sampler needed much fewer iterations but they took significantly longer time to run. From the average effective size across all the coefficients, we can see that Gibbs Sampler and Hamiltonian Monte Carlo had better mixing  than MALA and random walk.
+
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{ccccc}
+		\toprule
+		& RW & HMC & MALA & Gibbs\\
+		\midrule
+		Burnin & 400000 & 20000 & 40000 & 1000\\
+		Target Acceptance Rate & 0.25 & 0.7 & 0.5 & -\\
+		Initial Step Size & $1\times 10^{-8}$ & $1\times 10^{-4}$ & $1\times 10^{-6}$ & -\\
+		Thinning & 100 & 10 & 20 & 3\\
+		\midrule
+		Mean Effective Size(SD) & 42.5(8.6) & 681(123) & 176(30) & 916(205)\\
+		Time(s) & 47.2 & 392.9 & 73.73 & 545.3\\
+		\bottomrule  
+	\end{tabular}
+	\caption{Setup and performance statistics for four MCMC methods. Average effective size refers to the mean effective size of 785 covariate coefficients across 1000 samples for each sampling method.}\label{MCMCsetup}
+\end{table}
+
+\begin{figure}[htbp]
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{RWlik.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{MALAlik.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{HMClik.eps}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{gibbslik.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{RWaccept.eps}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{MALAaccept.eps}
+	\end{subfigure}
+	\begin{subfigure}[b]{0.32\columnwidth}
+		\includegraphics[width=\linewidth]{HMCaccept.eps}
+	\end{subfigure}
+	
+	\caption{Likelihood Trace Plots for the Four MCMC Methods and Acceptance Rate Trace Plots for Random Walk, MALA and HMC }\label{likandacceptance}
+\end{figure}
+
+
+
+Finally let's check the prediction performance of the estimated coefficients from the four MCMC methods. We provide a prediction probability from each coefficient sample for each individual test image. The image that had the biggest variance of prediction probabilities between the four methods was shown in Figure \ref{exampleimg}. The probability of this image being a 6 over 0 was 0.669 for random walk, 0.497 for MALA, 0.514 for Hamiltonian Monte Carlo and 0.493 for Gibbs Sampler.
+
+To compare the overall prediction performance between the four methods, I calculate the area under the receiver operating characteristics curve(AUROC) for each sample coefficient draw from every MCMC estimation method. The bigger the area the better the prediction performance is. The distribution of AUROC for each MCMC method is presented as violin plots in Figure \ref{auroc}. All the four methods generate high quality coefficient sample draws that can achieve AUROC larger than 0.9.
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.5\linewidth]{exampleimg.eps}
+	\caption{This image has the largest variance of prediction probability among four different MCMC methods. The probability of this image being a 6 over 0 was 0.669 for random walk, 0.497 for MALA, 0.514 for Hamiltonian Monte Carlo and 0.493 for Gibbs Sampler.}\label{exampleimg}
+	\includegraphics[width=0.6\linewidth]{AUROC.eps}
+	\caption{The AUROC scores of each coefficient sample draw are visualized on the violin plots by the MCMC methods. The horizontal lines represent the 25\%, 50\% and 75\% percentile. All the coefficient draws can achieve almost perfect prediction performance with AUC larger than 0.9.}\label{auroc}
+\end{figure}
+
+
+
+
+\bibliographystyle{plain}
+\bibliography{HW2citation}
+
+
+\end{document}

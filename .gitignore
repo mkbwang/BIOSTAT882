@@ -9,3 +9,8 @@ class_notes/
 *.gz
 *.Rhistory
 .Rproj.user
+.vscode/
+*.csv
+*.RData
+*.bbl
+*.blg
