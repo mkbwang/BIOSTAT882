@@ -1,0 +1,148 @@
+\documentclass[12pt]{article}
+\usepackage{paralist,amsmath,amssymb,thumbpdf,lmodern}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{physics}
+\usepackage{amsfonts}
+\usepackage{bbm}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{diagbox}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{caption}
+\usepackage{bm}
+\usepackage{makecell}
+\usepackage{ifxetex,ifluatex}
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname IncludeInRelease\endcsname\relax
+  \usepackage{fixltx2e}
+\fi
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\usepackage{newtxtext,newtxmath}
+
+\title{Biostat 882 HW3}
+\date{}
+\author{Mukai Wang 98830336}
+
+\makeatletter
+\newenvironment{breakablealgorithm}
+{% \begin{breakablealgorithm}
+		\begin{center}
+			\refstepcounter{algorithm}% New algorithm
+			\hrule height.8pt depth0pt \kern2pt% \@fs@pre for \@fs@ruled
+			\renewcommand{\caption}[2][\relax]{% Make a new \caption
+				{\raggedright\textbf{\fname@algorithm~\thealgorithm} ##2\par}%
+				\ifx\relax##1\relax % #1 is \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
+				\else % #1 is not \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
+				\fi
+				\kern2pt\hrule\kern2pt
+			}
+		}{% \end{breakablealgorithm}
+		\kern2pt\hrule\relax% \@fs@post for \@fs@ruled
+	\end{center}
+}
+\makeatother
+
+\usepackage{Sweave}
+\begin{document}
+\maketitle
+
+Given an outcome vector $\bm{Y}$ with a dimension of $n$, an input matrix $\bm{X}$ with a dimension of $n\times p$, we formulate a Bayesian linear regression model of 
+
+\begin{align*}
+	\bm{Y} &\sim \mathcal{N}\left(\bm{X}\bm{\beta}, \sigma^2 \mathbb{I}_{n} \right)\\
+	\bm{\beta} & \sim \mathcal{N}(\bm{0}, \sigma_{\beta}^2 \mathbb{I}_p)\\
+	\left.\sigma_{\beta}^2 \right\vert a_\beta &\sim \mathcal{IG}(1/2, 1/a_\beta)\\
+	a_\beta & \sim \mathcal{IG}(1/2, 1)\\
+	\pi(\sigma^2) & \propto 1/\sigma^2
+\end{align*}
+
+Therefore the joint distribution 
+
+\begin{align*}
+	\pi(\bm{Y}, \bm{X}, \bm{\beta}, \sigma^2, \sigma_{\beta}^2, a_\beta) & \propto \left(\frac{1}{\sqrt{2\pi \sigma^2}} \right)^n \cdot \exp( -\frac{1}{2\sigma^2}(\bm{Y} - \bm{X}\bm{\beta})^\top (\bm{Y} - \bm{X}\bm{\beta}) ) \cdot \\
+	& \qquad \left( \frac{1}{\sqrt{2\pi \sigma_{\beta}^2}} \right)^p \cdot \exp(-\frac{1}{2\sigma_{\beta}^2} \bm{\beta}^\top \bm{\beta})\cdot \frac{1}{a_{\beta}^{1/2}\Gamma(1/2) } (\sigma_{\beta}^{2})^{-3/2}\exp(-\frac{1}{a_\beta \sigma_{\beta}^2})\\
+	&\qquad \frac{1}{\Gamma(1/2)}a_{\beta}^{-3/2}\exp(-\frac{1}{a_\beta})\cdot 1/\sigma^2
+\end{align*}
+
+Therefore
+
+\begin{align*}
+	\pi\left(\left.\bm{\beta}\right\vert\text{rest}\right) &\propto \exp(\frac{\bm{\beta}^\top\bm{X}^\top\bm{Y}}{\sigma^2}-\frac{\bm{\beta}^\top \bm{X}^\top \bm{X} \bm{\beta}}{2\sigma^2} - \frac{\bm{\beta}^\top \bm{\beta}}{2\sigma_{\beta}^2} ) \\
+	\pi\left(\left.\sigma^2\right\vert\text{rest}\right) &\propto (\sigma^2)^{-n/2-1}\cdot \exp( -\frac{1}{2\sigma^2}(\bm{Y} - \bm{X}\bm{\beta})^\top (\bm{Y} - \bm{X}\bm{\beta}) )\\
+	\pi\left(\left.\sigma_{\beta}^2\right\vert\text{rest}\right) & \propto (\sigma_{\beta}^2)^{-p/2-3/2}\cdot \exp(-\frac{1}{\sigma_{\beta}^2} \left(\frac{1}{2}\bm{\beta}^\top \bm{\beta} + \frac{1}{a_\beta} \right)) \\
+	\pi\left(\left.a_{\beta}\right\vert\text{rest}\right) & \propto a_{\beta}^{-2}\cdot \exp(-\frac{1}{a_\beta} \left(\frac{1}{\sigma_{\beta}^2} + 1\right))
+\end{align*}
+
+In other words,
+
+\begin{align*}
+	\bm{\beta} &\sim \mathcal{N}\left(\left(\frac{\bm{X}^\top \bm{X}}{\sigma^2} + \frac{1}{\sigma_{\beta}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2}\bm{X}^\top \bm{Y},  \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2} + \frac{1}{\sigma_{\beta}^2} \mathbb{I}_{p} \right)^{-1} \right)\\
+	\sigma^2 & \sim \mathcal{IG}\left(n/2, \frac{1}{2} (\bm{Y} - \bm{X}\bm{\beta})^\top (\bm{Y} - \bm{X}\bm{\beta}) \right) \\
+	\sigma_{\beta}^2 & \sim \mathcal{IG}\left( \frac{p+1}{2}, \frac{1}{2}\bm{\beta}^\top \bm{\beta} + \frac{1}{a_\beta} \right)\\
+	a_\beta &\propto \mathcal{IG}\left(1, \frac{1}{\sigma_{\beta}^2} + 1  \right)
+\end{align*}
+
+
+The conclusions above are sufficient for deriving the Gibbs Sampling algorithm.
+
+Based on mean filed variational Bayes(MFVB), we need to define a function $q(\bm{\theta}) = q_1(\bm{\beta})q_2(\sigma^2)q_3(\sigma_{\beta}^2)q_4(a_\beta)$ such that $\bm{\beta}$, $\sigma^2$, $\sigma_{\beta}^2$ and $a_\beta$ are independent of each other. The choice of $q_1$, $q_2$, $q_3$ and $q_4$ for minimizing KL divergence $Kl\left(\left. q(\bm{\theta}) \right\Vert \pi(\left.\bm{\theta}\right\vert \bm{X}, \bm{Y})\right)$ is
+
+\begin{align*}
+	\log q_1(\bm{\beta}) &= \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\cdot \bm{\beta}^\top \bm{X}^\top \bm{Y} - \frac{1}{2}\bm{\beta}^\top \left( \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\bm{X}^\top \bm{X} + \mathbb{E}_q\left[\frac{1}{\sigma_{\beta}^2} \right]\mathbb{I}_p \right) \bm{\beta} + \text{const}\\
+	\log q_2(\sigma^2) &= -(n/2+1)\log \sigma^2 - \frac{1}{2\sigma^2} \mathbb{E}_{q}\left[ (\bm{Y} - \bm{X}\bm{\beta})^\top (\bm{Y} - \bm{X}\bm{\beta}) \right] + \text{const} \\
+	\log q_3(\sigma_{\beta}^2) &= \frac{p+3}{2}\log \sigma_{\beta}^2 - \frac{1}{\sigma_{\beta}^2}\left( \frac{1}{2}\mathbb{E}_{q}[\bm{\beta}^\top \bm{\beta}] + \mathbb{E}_q[1/a_\beta] \right) + \text{const} \\
+	\log q_4(a_\beta) &= -2\log a_\beta - \frac{1}{a_\beta} \left( \mathbb{E}_{q}[1/\sigma_{\beta}^2]+1 \right) + \text{const}
+\end{align*}
+in which
+\begin{align*}
+	\bm{\beta}^\star \equiv \mathbb{E}_{q}[\bm{\beta}] = \mathbb{E}_{q_1}[\bm{\beta}] &= \left(\frac{\bm{X}^\top \bm{X}}{\sigma^{2\star}} + \frac{1}{\sigma_{\beta}^{2\star}} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^{2 \star }}\bm{X}^\top \bm{Y}\\
+	V_{\bm{\beta}}^\star \equiv  \text{Var}_q[\bm{\beta}] = \text{Var}_{q_1}[\bm{\beta}] &= \left(\frac{\bm{X}^\top \bm{X}}{\sigma^{2\star}} + \frac{1}{\sigma_{\beta}^{2\star}} \mathbb{I}_{p} \right)^{-1}\\
+	\frac{1}{\sigma^{2\star}}\equiv  \mathbb{E}_{q}\left[\frac{1}{\sigma^2} \right] = \mathbb{E}_{q_2}\left[\frac{1}{\sigma^2} \right] &= \frac{n}{\mathbb{E}_q\left[(\bm{Y} - \bm{X}\bm{\beta})^{\top} (\bm{Y} - \bm{X}\bm{\beta})\right]} \\
+	&= \frac{n}{(\bm{Y} - \bm{X}\bm{\beta}^\star)^{\top} (\bm{Y} - \bm{X}\bm{\beta}^\star) + \text{tr}(V_{\bm{\beta}}^{\star} \bm{X}^\top \bm{X})} \\
+	\frac{1}{\sigma_{\beta}^{2\star}} \equiv \mathbb{E}_{q}\left[\frac{1}{\sigma_{\beta}^2} \right] = \mathbb{E}_{q_3}\left[\frac{1}{\sigma_{\beta}^2} \right]&=\frac{p+1}{\mathbb{E}_q[\bm{\beta}^\top \bm{\beta}] + \frac{2}{a_\beta^\star}}\\
+	&= \frac{p+1}{\bm{\beta}^{\star \top} \bm{\beta}^\star + \text{tr}(V_{\bm{\beta}}^\star) + \frac{2}{a_\beta^\star}}\\
+	\frac{1}{a_{\beta}^\star} \equiv \mathbb{E}_q\left[ \frac{1}{a_{\beta}} \right] = \mathbb{E}_{q_4}\left[ \frac{1}{a_{\beta}} \right] &= \frac{1}{1+1/\sigma_{\beta}^{2\star}}
+\end{align*}
+
+The ELBO is calculated as (ignore constant terms)
+\begin{align*}
+	&\quad \mathbb{E}_q[\log \pi (\bm{Y}, \bm{X}, \bm{\theta})] - \mathbb{E}_q[\log q(\bm{\theta})]\\
+	&=\mathbb{E}_q[\log \pi (\bm{Y}, \bm{X}, \bm{\beta}, \sigma^2, \sigma_{\beta}^2, a_{\beta})] - \mathbb{E}_q[\log q_1(\bm{\beta})q_2(\sigma^2)q3(\sigma_{\beta}^2)q_4(a_{\beta})]\\
+	&=-\mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\mathbb{E}_q[\bm{\beta}]^\top \bm{X}^\top \bm{Y} + \frac{1}{2}\mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\cdot \mathbb{E}_q[\bm{\beta}^\top \bm{X}^\top \bm{X}\bm{\beta}]+\\
+	&\quad \frac{1}{2} \mathbb{E}_q\left[\frac{1}{\sigma_\beta^2}\right]\mathbb{E}_q[\bm{\beta}^\top \bm{\beta}] + \mathbb{E}_q\left[\frac{1}{\sigma_\beta^2}\right] \mathbb{E}_q\left[\frac{1}{a_\beta}\right]\\
+	&=-\frac{1}{\sigma^{2\star}}\cdot \bm{\beta}^{\star \top} \bm{X}^{\top} \bm{Y} + \frac{1}{2\sigma^{2\star}}\cdot \left( \bm{\beta}^{\star\top} \bm{X}^{\top}\bm{X} \bm{\beta}^{\star}  + \text{tr}(V_{\bm{\beta}}^\star\bm{X}^\top \bm{X})\right) +\\
+	&\quad \frac{1}{2\sigma_{\beta}^{2\star}}\left(\bm{\beta}^{\star\top} \bm{\beta}^{\star} + \text{tr}(V_{\bm{\beta}}^\star) \right) + \frac{1}{\sigma_{\beta}^{2\star} a_{\beta}^\star}
+\end{align*}
+
+
+\bibliographystyle{plain}
+
+
+\end{document}
