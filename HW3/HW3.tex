@@ -106,7 +106,7 @@ In other words,
 	\bm{\beta} &\sim \mathcal{N}\left(\left(\frac{\bm{X}^\top \bm{X}}{\sigma^2} + \frac{1}{\sigma_{\beta}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2}\bm{X}^\top \bm{Y},  \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2} + \frac{1}{\sigma_{\beta}^2} \mathbb{I}_{p} \right)^{-1} \right)\\
 	\sigma^2 & \sim \mathcal{IG}\left(n/2, \frac{1}{2} (\bm{Y} - \bm{X}\bm{\beta})^\top (\bm{Y} - \bm{X}\bm{\beta}) \right) \\
 	\sigma_{\beta}^2 & \sim \mathcal{IG}\left( \frac{p+1}{2}, \frac{1}{2}\bm{\beta}^\top \bm{\beta} + \frac{1}{a_\beta} \right)\\
-	a_\beta &\propto \mathcal{IG}\left(1, \frac{1}{\sigma_{\beta}^2} + 1  \right)
+	a_\beta &\sim \mathcal{IG}\left(1, \frac{1}{\sigma_{\beta}^2} + 1  \right)
 \end{align*}
 
 
