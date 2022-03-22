@@ -134,7 +134,7 @@ public:
       update_inv_sigma_beta_sq();
     } else if (method==1){
       vb_paras.Cov_beta = zeros(dat.num_predictors,dat.num_predictors);
-      vb_paras.E_beta = ones(dat.num_predictors);
+      vb_paras.E_beta = zeros(dat.num_predictors);
       vb_paras.E_inv_sigma_sq = 1.0/in_sigma_sq;
       vb_paras.E_inv_sigma_beta_sq = 1.0/in_sigma_beta_sq;
       update_Cov_beta();
@@ -220,7 +220,7 @@ public:
   }
   
   void save_paras_sample(){
-    if(iter > gibbs_control.burnin){
+    if(iter >= gibbs_control.burnin){
       if((iter - gibbs_control.burnin)%gibbs_control.thinning==0){
         int mcmc_iter = (iter - gibbs_control.burnin)/gibbs_control.thinning;
         paras_sample.beta.col(mcmc_iter) = paras.beta;
@@ -298,7 +298,7 @@ public:
   
   void update_Cov_beta(){
     mat temp = vb_paras.E_inv_sigma_sq*dat.XtX;
-    temp.diag() += paras.inv_sigma_beta_sq;
+    temp.diag() += vb_paras.E_inv_sigma_beta_sq;
     vb_paras.Cov_beta = inv(temp);
   };
   
@@ -334,10 +334,10 @@ public:
 
 
   void update_ELBO(){
-    vb_profile.ELBO = -vb_paras.E_inv_sigma_sq * dot(vb_paras.E_beta, dat.Xty);
-    vb_profile.ELBO += 0.5 * vb_paras.E_inv_sigma_sq *vb_paras.E_Xbeta_sq;
-    vb_profile.ELBO += 0.5 * vb_paras.E_inv_sigma_beta_sq * vb_paras.E_beta_innerproduct;
-    vb_profile.ELBO += vb_paras.E_inv_sigma_beta_sq * vb_paras.E_inv_a_beta;
+    vb_paras.ELBO = -vb_paras.E_inv_sigma_sq * dot(vb_paras.E_beta, dat.Xty);
+    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_sq *vb_paras.E_Xbeta_sq;
+    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_beta_sq * vb_paras.E_beta_innerproduct;
+    vb_paras.ELBO += vb_paras.E_inv_sigma_beta_sq * vb_paras.E_inv_a_beta;
   };
   
   double compute_paras_diff(vec& beta, vec& beta_prev){
