@@ -69,7 +69,7 @@
 }
 \makeatother
 
-\usepackage{Sweave}
+
 \begin{document}
 \maketitle
 
@@ -129,18 +129,22 @@ The conclusions above are sufficient for deriving the Gibbs Sampling algorithm (
 \end{breakablealgorithm}
 
 
-Based on mean filed variational Bayes(MFVB), we need to define a function $q(\bm{\theta}) = q_1(\bm{\beta})q_2(\sigma^2)q_3(\sigma_{\beta}^2)q_4(a_\beta)$ such that $\bm{\beta}$, $\sigma^2$, $\sigma_{\beta}^2$ and $a_\beta$ are independent of each other. The choice of $q_1$, $q_2$, $q_3$ and $q_4$ for minimizing KL divergence $Kl\left(\left. q(\bm{\theta}) \right\Vert \pi(\left.\bm{\theta}\right\vert \bm{X}, \bm{Y})\right)$ is
+Based on mean filed variational Bayes(MFVB), we need to define a function $q(\bm{\theta}) = q_1(\bm{\beta})q_2(\sigma^2)q_3(\sigma_{\beta}^2)q_4(a_\beta)$ such that $\bm{\beta}$, $\sigma^2$, $\sigma_{\beta}^2$ and $a_\beta$ are independent of each other. If I denote 
+\[ \Sigma_{\bm{\beta}} = \left( \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\bm{X}^\top \bm{X} + \mathbb{E}_q\left[\frac{1}{\sigma_{\beta}^2} \right]\mathbb{I}_p \right)^{-1}\]
+
+ Then the choice of $q_1$, $q_2$, $q_3$ and $q_4$ for minimizing KL divergence $Kl\left(\left. q(\bm{\theta}) \right\Vert \pi(\left.\bm{\theta}\right\vert \bm{X}, \bm{Y})\right)$ is
 
 \begin{align*}
-	\log q_1(\bm{\beta}) &= \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\cdot \bm{\beta}^\top \bm{X}^\top \bm{Y} - \frac{1}{2}\bm{\beta}^\top \left( \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\bm{X}^\top \bm{X} + \mathbb{E}_q\left[\frac{1}{\sigma_{\beta}^2} \right]\mathbb{I}_p \right) \bm{\beta} + \text{const}\\
+	\log q_1(\bm{\beta}) &= -\frac{1}{2} \log \det \Sigma_{\bm{\beta}} + \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\cdot \bm{\beta}^\top \bm{X}^\top \bm{Y} - \frac{1}{2}\bm{\beta}^\top \Sigma_{\bm{\beta}}^{-1} \bm{\beta} -  \\
+	& \quad \frac{1}{2} \mathbb{E}_q^{2}\left[\frac{1}{\sigma^2} \right] \bm{Y}^\top \bm{X} \Sigma_{\bm{\beta}} \bm{X}^\top \bm{Y} + \text{const}\\
 	\log q_2(\sigma^2) &= -(n/2+1)\log \sigma^2 - \frac{1}{2\sigma^2} \mathbb{E}_{q}\left[ (\bm{Y} - \bm{X}\bm{\beta})^\top (\bm{Y} - \bm{X}\bm{\beta}) \right] + \text{const} \\
-	\log q_3(\sigma_{\beta}^2) &= \frac{p+3}{2}\log \sigma_{\beta}^2 - \frac{1}{\sigma_{\beta}^2}\left( \frac{1}{2}\mathbb{E}_{q}[\bm{\beta}^\top \bm{\beta}] + \mathbb{E}_q[1/a_\beta] \right) + \text{const} \\
+	\log q_3(\sigma_{\beta}^2) &= -\frac{p+3}{2}\log \sigma_{\beta}^2 - \frac{1}{\sigma_{\beta}^2}\left( \frac{1}{2}\mathbb{E}_{q}[\bm{\beta}^\top \bm{\beta}] + \mathbb{E}_q[1/a_\beta] \right) + \text{const} \\
 	\log q_4(a_\beta) &= -2\log a_\beta - \frac{1}{a_\beta} \left( \mathbb{E}_{q}[1/\sigma_{\beta}^2]+1 \right) + \text{const}
 \end{align*}
 in which
 \begin{align*}
-	\bm{\beta}^\star \equiv \mathbb{E}_{q}[\bm{\beta}] = \mathbb{E}_{q_1}[\bm{\beta}] &= \left(\frac{\bm{X}^\top \bm{X}}{\sigma^{2\star}} + \frac{1}{\sigma_{\beta}^{2\star}} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^{2 \star }}\bm{X}^\top \bm{Y}\\
-	V_{\bm{\beta}}^\star \equiv  \text{Var}_q[\bm{\beta}] = \text{Var}_{q_1}[\bm{\beta}] &= \left(\frac{\bm{X}^\top \bm{X}}{\sigma^{2\star}} + \frac{1}{\sigma_{\beta}^{2\star}} \mathbb{I}_{p} \right)^{-1}\\
+	\bm{\beta}^\star \equiv \mathbb{E}_{q}[\bm{\beta}] = \mathbb{E}_{q_1}[\bm{\beta}] &= \frac{1}{\sigma^{2 \star }} \cdot \Sigma_{\bm{\beta}}  \bm{X}^\top \bm{Y}\\
+	V_{\bm{\beta}}^\star \equiv  \text{Var}_q[\bm{\beta}] = \text{Var}_{q_1}[\bm{\beta}] &= \Sigma_{\bm{\beta}}\\
 	\frac{1}{\sigma^{2\star}}\equiv  \mathbb{E}_{q}\left[\frac{1}{\sigma^2} \right] = \mathbb{E}_{q_2}\left[\frac{1}{\sigma^2} \right] &= \frac{n}{\mathbb{E}_q\left[(\bm{Y} - \bm{X}\bm{\beta})^{\top} (\bm{Y} - \bm{X}\bm{\beta})\right]} \\
 	&= \frac{n}{(\bm{Y} - \bm{X}\bm{\beta}^\star)^{\top} (\bm{Y} - \bm{X}\bm{\beta}^\star) + \text{tr}(V_{\bm{\beta}}^{\star} \bm{X}^\top \bm{X})} \\
 	\frac{1}{\sigma_{\beta}^{2\star}} \equiv \mathbb{E}_{q}\left[\frac{1}{\sigma_{\beta}^2} \right] = \mathbb{E}_{q_3}\left[\frac{1}{\sigma_{\beta}^2} \right]&=\frac{p+1}{\mathbb{E}_q[\bm{\beta}^\top \bm{\beta}] + \frac{2}{a_\beta^\star}}\\
@@ -152,10 +156,10 @@ The ELBO is calculated as (ignore constant terms)
 \begin{align*}
 	&\quad \mathbb{E}_q[\log \pi (\bm{Y}, \bm{X}, \bm{\theta})] - \mathbb{E}_q[\log q(\bm{\theta})]\\
 	&=\mathbb{E}_q[\log \pi (\bm{Y}, \bm{X}, \bm{\beta}, \sigma^2, \sigma_{\beta}^2, a_{\beta})] - \mathbb{E}_q[\log q_1(\bm{\beta})q_2(\sigma^2)q3(\sigma_{\beta}^2)q_4(a_{\beta})]\\
-	&=-\mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\mathbb{E}_q[\bm{\beta}]^\top \bm{X}^\top \bm{Y} + \frac{1}{2}\mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\cdot \mathbb{E}_q[\bm{\beta}^\top \bm{X}^\top \bm{X}\bm{\beta}]+\\
-	&\quad \frac{1}{2} \mathbb{E}_q\left[\frac{1}{\sigma_\beta^2}\right]\mathbb{E}_q[\bm{\beta}^\top \bm{\beta}] + \mathbb{E}_q\left[\frac{1}{\sigma_\beta^2}\right] \mathbb{E}_q\left[\frac{1}{a_\beta}\right]\\
-	&=-\frac{1}{\sigma^{2\star}}\cdot \bm{\beta}^{\star \top} \bm{X}^{\top} \bm{Y} + \frac{1}{2\sigma^{2\star}}\cdot \left( \bm{\beta}^{\star\top} \bm{X}^{\top}\bm{X} \bm{\beta}^{\star}  + \text{tr}(V_{\bm{\beta}}^\star\bm{X}^\top \bm{X})\right) +\\
-	&\quad \frac{1}{2\sigma_{\beta}^{2\star}}\left(\bm{\beta}^{\star\top} \bm{\beta}^{\star} + \text{tr}(V_{\bm{\beta}}^\star) \right) + \frac{1}{\sigma_{\beta}^{2\star} a_{\beta}^\star}
+	&=\frac{1}{2} \log \det \Sigma_{\bm{\beta}} -\mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\mathbb{E}_q[\bm{\beta}]^\top \bm{X}^\top \bm{Y} + \frac{1}{2}\mathbb{E}_q[\bm{\beta}]^\top \Sigma_{\bm{\beta}}^{-1} \mathbb{E}_q[\bm{\beta}]+\\
+	&\quad \frac{1}{2} \mathbb{E}_q^{2}\left[\frac{1}{\sigma^2} \right] \bm{Y}^\top \bm{X} \Sigma_{\bm{\beta}} \bm{X}^\top \bm{Y} + \mathbb{E}_q\left[\frac{1}{\sigma_\beta^2}\right] \mathbb{E}_q\left[\frac{1}{a_\beta}\right] \\
+	& = \frac{1}{2}\log \det V_{\bm{\beta}}^{\star} - \frac{1}{\sigma^{2\star}}\bm{\beta}^{\star \top} \bm{X}^\top \bm{Y} + \frac{1}{2\sigma^{2\star}} \bm{\beta}^{\star \top} \bm{X}^\top \bm{X} \bm{\beta}^{\star} +\\
+	&\quad \frac{1}{2\sigma_{\bm{\beta}}^{2\star}}\bm{\beta}^{\star \top} \bm{\beta}^{\star} + \frac{1}{2}\frac{1}{\sigma^{2\star}\cdot \sigma^{2\star}}\bm{Y}^{\top} \bm{X} V_{\bm{\beta}}^{\star} \bm{X}^{\top} \bm{Y} + \frac{1}{a_{\bm{\beta}}^{\star} \sigma_{\bm{\beta}}^{2 \star}}	
 \end{align*}
 
 
@@ -169,15 +173,15 @@ Based on these formulas, I can derive the Mean File Variational Bayes algorithm 
 		\State $\bm{\beta}_0 \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{0}} + \frac{1}{\sigma_{\beta, 0}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2_{0}}\bm{X}^\top \bm{Y}$
 		\State $V_{\beta, 0} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{0}} + \frac{1}{\sigma_{\beta, 0}^2} \mathbb{I}_{p} \right)^{-1}$
 		\State $a_{\beta, 0}^{-1} \gets 1/(1+\sigma_{\beta, 0}^{-2})$
-		\State $\text{ELBO}_0 \gets -\frac{1}{\sigma^{2}_{0}}\cdot \bm{\beta}^{\top}_{0} \bm{X}^{\top} \bm{Y} + \frac{1}{2\sigma^{2}_{0}}\cdot \left( \bm{\beta}^{\top}_{0} \bm{X}^{\top}\bm{X} \bm{\beta}_{0}  + \text{tr}(V_{\bm{\beta}, 0}\bm{X}^\top \bm{X})\right) + \frac{1}{2\sigma_{\beta, 0}^{2}}\left(\bm{\beta}^{\top}_{0} \bm{\beta}_{0} + \text{tr}(V_{\bm{\beta}, 0}) \right) + \frac{1}{\sigma_{\beta, 0}^{2} a_{\beta, 0}}$
+		\State $\text{ELBO}_{0} \gets \frac{1}{2}\log \det V_{\bm{\beta}, 0} - \frac{1}{\sigma_{0}^{2}}\bm{\beta}_{0}^{\top} \bm{X}^\top \bm{Y} + \frac{1}{2\sigma_{0}^{2}} \bm{\beta}_{0}^{\top} \bm{X}^\top \bm{X} \bm{\beta}_{0} + \frac{1}{2\sigma_{\bm{\beta}, 0}^{2}}\bm{\beta}_{0}^{ \top} \bm{\beta}_{0} + \frac{1}{2}\frac{1}{\sigma_{0}^{2}\cdot \sigma_{0}^{2}}\bm{Y}^{\top} \bm{X} V_{\bm{\beta}, 0} \bm{X}^{\top} \bm{Y} + \frac{1}{a_{\bm{\beta}, 0} \sigma_{\bm{\beta}, 0}^{2}}$
 		\State $i \gets 0$
-		\While {$i=0$ or $\text{ELBO}_i - \text{ELBO}_{i-1} > \delta$}
+		\While {$i=0$ or $\left\vert\text{ELBO}_i - \text{ELBO}_{i-1}\right\vert > \delta$}
 		\State $\sigma_{i+1}^{-2} \gets \frac{n}{(\bm{Y} - \bm{X}\bm{\beta}_{i})^{\top} (\bm{Y} - \bm{X}\bm{\beta}_{i})}$
 		\State $\sigma_{\beta, i+1}^{-2} \gets \frac{p+1}{\bm{\beta}_{i}^\top \bm{\beta}_{i} + \frac{2}{a_{\beta, i}}}$
 		\State $\bm{\beta}_{i+1} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i+1}} + \frac{1}{\sigma_{\beta, i+1}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2_{i+1}}\bm{X}^\top \bm{Y}$
 		\State $V_{\beta, i+1} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i+1}} + \frac{1}{\sigma_{\beta, i+1}^2} \mathbb{I}_{p} \right)^{-1}$
 		\State $a_{\beta, i+1}^{-1} \gets 1/(1+\sigma_{\beta, i+1}^{-2})$
-		\State $\text{ELBO}_{i+1} \gets -\frac{1}{\sigma^{2}_{i+1}}\cdot \bm{\beta}^{\top}_{i+1} \bm{X}^{\top} \bm{Y} + \frac{1}{2\sigma^{2}_{i+1}}\cdot \left( \bm{\beta}^{\top}_{i+1} \bm{X}^{\top}\bm{X} \bm{\beta}_{i+1}  + \text{tr}(V_{\bm{\beta}, i+1}\bm{X}^\top \bm{X})\right) + \frac{1}{2\sigma_{\beta, i+1}^{2}}\left(\bm{\beta}^{\top}_{i+1} \bm{\beta}_{i+1} + \text{tr}(V_{\bm{\beta}, i+1}) \right) + \frac{1}{\sigma_{\beta, i+1}^{2} a_{\beta, i+1}}$
+		\State $\text{ELBO}_{i+1} \gets \frac{1}{2}\log \det V_{\bm{\beta}, i+1} - \frac{1}{\sigma_{i+1}^{2}}\bm{\beta}_{i+1}^{\top} \bm{X}^\top \bm{Y} + \frac{1}{2\sigma_{i+1}^{2}} \bm{\beta}_{i+1}^{\top} \bm{X}^\top \bm{X} \bm{\beta}_{i+1} + \frac{1}{2\sigma_{\bm{\beta}, i+1}^{2}}\bm{\beta}_{i+1}^{ \top} \bm{\beta}_{i+1} + \frac{1}{2}\frac{1}{\sigma_{i+1}^{2}\cdot \sigma_{i+1}^{2}}\bm{Y}^{\top} \bm{X} V_{\bm{\beta}, i+1} \bm{X}^{\top} \bm{Y} + \frac{1}{a_{\bm{\beta}, i+1} \sigma_{\bm{\beta}, i+1}^{2}}$
 		\State $i\gets i+1$
 		\EndWhile
 	\end{algorithmic}
@@ -185,6 +189,37 @@ Based on these formulas, I can derive the Mean File Variational Bayes algorithm 
 	\hspace*{\algorithmicindent} \textbf{Output} $\bm{\beta}_i$,$V_{\beta, i}$, $\sigma_{i}^2$, $\sigma_{\beta, i}^2$, $a_{\beta, i}$
 \end{breakablealgorithm}
 
+
+We have two settings to compare performance between Gibbs sampler and MFVB. In setting 1, we have number of observations $n=1000$, number of covariates $p=50$, coefficient values $\beta_{j}=(-1)^j$, $j = 0,1,\cdots p$. The independent variable vector $\bm{x}_i \sim \mathcal{N}(\bm{0}_{p}, \mathbb{I}_{p})$, $\epsilon_{i}\sim \mathcal{N}(0, 1)$.
+
+For the Gibbs sampler, I collected 500 samples with a burnin period of 500 and thinning of 10. For the MFVB, I set the initial $\sigma_{0}^2=1000$ and $\sigma_{\beta}^2=1$. The Gibbs sampler took 0.58 second to finish 5500 iterations and the MFVB only took 0.01 second after 4 iterations. The mean square error across all $\beta_{j}$ were both 0.028 for the two methods. Both methods were successful.
+
+
+In setting two we have $n=50$, $p=10$, $\beta_j = (-1)^j$ when $j=0,1,2,3$ and 0 otherwise. $\bm{x}_i \sim \mathcal{N}(\bm{0}_{p}, 0.1\mathbb{I}_{p} + 0.9\mathbb{J}_{p})$, $\epsilon_{i}\sim \mathcal{N}(0, 1)$. This is a more diffcult scenario because of the small sample size and strong collinearity between covariates.
+
+The Gibbs sampler took 0.16 second with a burnin period of 3000 iterations. The MFVB took only 0.001 second with 42 iterations. The mean square error across all $\beta_{j}$ was 0.326 for Gibbs sampler, 0.324 for MFVB and 1.28 for the frequentist method. The posterior mean for each coefficient is listed in table\ref{result}. It shows that Bayesian methods managed to shrink the estimations toward zero to achieve a smaller mean square error. The performance of the two Bayesian methods were comparable, but MFVB was much faster.
+
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{ccccc}
+	\toprule
+	&Truth & GLM & Gibbs & MFVB\\
+	\midrule
+	$\beta_0$ &1 & 0.754 & 0.343 & 0.431 \\
+	$\beta_1$ &-1 & -0.693 & -0.074 & -0.056 \\
+	$\beta_2$ &1 & -0.298 & -0.026 & -0.065 \\
+	$\beta_3$ &-1 & 1.060 & 0.081 & 0.061 \\
+	$\beta_4$ &0 & 0.233 & -0.065 & -0.054 \\
+	$\beta_5$ &0 & 0.141 & -0.061 & -0.091 \\
+	$\beta_6$ &0 & 0.890 & 0.045 & 0.006 \\
+	$\beta_7$ &0 & 0.537 & -0.004 & -0.002 \\
+	$\beta_8$ &0 & 0.704 & -0.018 & -0.013 \\
+	$\beta_9$ &0 & -2.462 & -0.208 & -0.223 \\
+	$\beta_{10}$ &0 & -0.560 & -0.164 & -0.176 \\
+	\bottomrule 
+	\end{tabular}
+	\caption{Coefficient Estimates of three different inference methods: frequentist GLM, Gibbs Sampler and Mean File Variational Bayes}\label{result}
+\end{table}
 
 \bibliographystyle{plain}
 

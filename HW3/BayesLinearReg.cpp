@@ -334,9 +334,14 @@ public:
 
 
   void update_ELBO(){
-    vb_paras.ELBO = -vb_paras.E_inv_sigma_sq * dot(vb_paras.E_beta, dat.Xty);
-    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_sq *vb_paras.E_Xbeta_sq;
-    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_beta_sq * vb_paras.E_beta_innerproduct;
+    double logdet_val;
+    double logdet_sign;
+    log_det(logdet_val,logdet_sign,vb_paras.Cov_beta);
+    vb_paras.ELBO = 0.5 * logdet_val;
+    vb_paras.ELBO -= vb_paras.E_inv_sigma_sq * dot(vb_paras.E_beta, dat.Xty);
+    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_sq *dot(dat.X * vb_paras.E_beta, dat.X * vb_paras.E_beta);
+    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_sq * vb_paras.E_inv_sigma_sq * as_scalar(dat.Xty.t() * vb_paras.Cov_beta * dat.Xty);
+    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_beta_sq * dot(vb_paras.E_beta, vb_paras.E_beta);
     vb_paras.ELBO += vb_paras.E_inv_sigma_beta_sq * vb_paras.E_inv_a_beta;
   };
   
