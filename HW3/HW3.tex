@@ -110,7 +110,24 @@ In other words,
 \end{align*}
 
 
-The conclusions above are sufficient for deriving the Gibbs Sampling algorithm.
+The conclusions above are sufficient for deriving the Gibbs Sampling algorithm (pseudocode \ref{Gibbs}).
+
+\begin{breakablealgorithm}
+	\caption{Gibbs Sampler}\label{Gibbs}
+	\hspace*{\algorithmicindent} \textbf{Input}   Response Variable $ \bm{Y}$  with length $n$, Covariate matrix $\bm{X}$ with dimension $n\times p$, Initial parameters of coefficient vector $\bm{\beta}_0$, residual variance $\sigma^2_0$, prior variance of coefficient $\sigma_{\beta, 0}^2$ and latent parameter $a_{\beta, 0}$ Chain Length $N$
+	
+	\begin{algorithmic}[1]
+		\For{$i \gets 0$ to $N-1$}
+		\State $\bm{\beta}_{i+1} \sim \mathcal{N}\left(\left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i}} + \frac{1}{\sigma_{\beta, i}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2_{i}}\bm{X}^\top \bm{Y},  \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i}} + \frac{1}{\sigma_{\beta, i}^2} \mathbb{I}_{p} \right)^{-1} \right)$
+		\State $\sigma^2_{i+1}  \sim \mathcal{IG}\left(n/2, \frac{1}{2} (\bm{Y} - \bm{X}\bm{\beta}_{i+1})^\top (\bm{Y} - \bm{X}\bm{\beta}_{i+1}) \right)$
+		\State $\sigma_{\beta, i+1}^2  \sim \mathcal{IG}\left( \frac{p+1}{2}, \frac{1}{2}\bm{\beta}_{i+1}^\top \bm{\beta}_{i+1} + \frac{1}{a_{\beta, i}} \right)$
+		\State $a_{\beta, i+1} \sim \mathcal{IG}\left(1, \frac{1}{\sigma_{\beta, i+1}^2} + 1  \right)$
+		\EndFor	
+	\end{algorithmic}
+	
+	\hspace*{\algorithmicindent} \textbf{Output} $\{ \bm{\beta}_0, \bm{\beta}_1, \cdots, \bm{\beta}_N\}$, $\{ \sigma_{0}^2,  \sigma_{1}^2, \cdots  \sigma_{N}^2\}$ $\{ \sigma_{\bm{\beta}, 0}^2,  \sigma_{\bm{\beta}, 1}^2, \cdots  \sigma_{\bm{\beta}, N}^2\}$, $\{a_{\beta, 0}, a_{\beta, 1}, \cdots a_{\beta, N} \}$
+\end{breakablealgorithm}
+
 
 Based on mean filed variational Bayes(MFVB), we need to define a function $q(\bm{\theta}) = q_1(\bm{\beta})q_2(\sigma^2)q_3(\sigma_{\beta}^2)q_4(a_\beta)$ such that $\bm{\beta}$, $\sigma^2$, $\sigma_{\beta}^2$ and $a_\beta$ are independent of each other. The choice of $q_1$, $q_2$, $q_3$ and $q_4$ for minimizing KL divergence $Kl\left(\left. q(\bm{\theta}) \right\Vert \pi(\left.\bm{\theta}\right\vert \bm{X}, \bm{Y})\right)$ is
 
@@ -140,6 +157,33 @@ The ELBO is calculated as (ignore constant terms)
 	&=-\frac{1}{\sigma^{2\star}}\cdot \bm{\beta}^{\star \top} \bm{X}^{\top} \bm{Y} + \frac{1}{2\sigma^{2\star}}\cdot \left( \bm{\beta}^{\star\top} \bm{X}^{\top}\bm{X} \bm{\beta}^{\star}  + \text{tr}(V_{\bm{\beta}}^\star\bm{X}^\top \bm{X})\right) +\\
 	&\quad \frac{1}{2\sigma_{\beta}^{2\star}}\left(\bm{\beta}^{\star\top} \bm{\beta}^{\star} + \text{tr}(V_{\bm{\beta}}^\star) \right) + \frac{1}{\sigma_{\beta}^{2\star} a_{\beta}^\star}
 \end{align*}
+
+
+Based on these formulas, I can derive the Mean File Variational Bayes algorithm (pseudocode \ref{MFVB})
+
+\begin{breakablealgorithm}
+	\caption{Mean File Variational Bayes}\label{MFVB}
+	\hspace*{\algorithmicindent} \textbf{Input}   Response Variable $ \bm{Y}$  with length $n$, Covariate matrix $\bm{X}$ with dimension $n\times p$, residual variance $\sigma^2_0$, prior variance of coefficient $\sigma_{\beta, 0}^2$, ELBO difference tolerance $\delta$ 
+	
+	\begin{algorithmic}[1]
+		\State $\bm{\beta}_0 \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{0}} + \frac{1}{\sigma_{\beta, 0}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2_{0}}\bm{X}^\top \bm{Y}$
+		\State $V_{\beta, 0} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{0}} + \frac{1}{\sigma_{\beta, 0}^2} \mathbb{I}_{p} \right)^{-1}$
+		\State $a_{\beta, 0}^{-1} \gets 1/(1+\sigma_{\beta, 0}^{-2})$
+		\State $\text{ELBO}_0 \gets -\frac{1}{\sigma^{2}_{0}}\cdot \bm{\beta}^{\top}_{0} \bm{X}^{\top} \bm{Y} + \frac{1}{2\sigma^{2}_{0}}\cdot \left( \bm{\beta}^{\top}_{0} \bm{X}^{\top}\bm{X} \bm{\beta}_{0}  + \text{tr}(V_{\bm{\beta}, 0}\bm{X}^\top \bm{X})\right) + \frac{1}{2\sigma_{\beta, 0}^{2}}\left(\bm{\beta}^{\top}_{0} \bm{\beta}_{0} + \text{tr}(V_{\bm{\beta}, 0}) \right) + \frac{1}{\sigma_{\beta, 0}^{2} a_{\beta, 0}}$
+		\State $i \gets 0$
+		\While {$i=0$ or $\text{ELBO}_i - \text{ELBO}_{i-1} > \delta$}
+		\State $\sigma_{i+1}^{-2} \gets \frac{n}{(\bm{Y} - \bm{X}\bm{\beta}_{i})^{\top} (\bm{Y} - \bm{X}\bm{\beta}_{i})}$
+		\State $\sigma_{\beta, i+1}^{-2} \gets \frac{p+1}{\bm{\beta}_{i}^\top \bm{\beta}_{i} + \frac{2}{a_{\beta, i}}}$
+		\State $\bm{\beta}_{i+1} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i+1}} + \frac{1}{\sigma_{\beta, i+1}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2_{i+1}}\bm{X}^\top \bm{Y}$
+		\State $V_{\beta, i+1} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i+1}} + \frac{1}{\sigma_{\beta, i+1}^2} \mathbb{I}_{p} \right)^{-1}$
+		\State $a_{\beta, i+1}^{-1} \gets 1/(1+\sigma_{\beta, i+1}^{-2})$
+		\State $\text{ELBO}_{i+1} \gets -\frac{1}{\sigma^{2}_{i+1}}\cdot \bm{\beta}^{\top}_{i+1} \bm{X}^{\top} \bm{Y} + \frac{1}{2\sigma^{2}_{i+1}}\cdot \left( \bm{\beta}^{\top}_{i+1} \bm{X}^{\top}\bm{X} \bm{\beta}_{i+1}  + \text{tr}(V_{\bm{\beta}, i+1}\bm{X}^\top \bm{X})\right) + \frac{1}{2\sigma_{\beta, i+1}^{2}}\left(\bm{\beta}^{\top}_{i+1} \bm{\beta}_{i+1} + \text{tr}(V_{\bm{\beta}, i+1}) \right) + \frac{1}{\sigma_{\beta, i+1}^{2} a_{\beta, i+1}}$
+		\State $i\gets i+1$
+		\EndWhile
+	\end{algorithmic}
+	
+	\hspace*{\algorithmicindent} \textbf{Output} $\bm{\beta}_i$,$V_{\beta, i}$, $\sigma_{i}^2$, $\sigma_{\beta, i}^2$, $a_{\beta, i}$
+\end{breakablealgorithm}
 
 
 \bibliographystyle{plain}
