@@ -73,6 +73,8 @@
 \begin{document}
 \maketitle
 
+The R code and the C++ code can be accessed \href{https://github.com/mkbwang/BIOSTAT882/tree/master/HW3}{here}.
+
 Given an outcome vector $\bm{Y}$ with a dimension of $n$, an input matrix $\bm{X}$ with a dimension of $n\times p$, we formulate a Bayesian linear regression model of 
 
 \begin{align*}
@@ -135,8 +137,7 @@ Based on mean filed variational Bayes(MFVB), we need to define a function $q(\bm
  Then the choice of $q_1$, $q_2$, $q_3$ and $q_4$ for minimizing KL divergence $Kl\left(\left. q(\bm{\theta}) \right\Vert \pi(\left.\bm{\theta}\right\vert \bm{X}, \bm{Y})\right)$ is
 
 \begin{align*}
-	\log q_1(\bm{\beta}) &= -\frac{1}{2} \log \det \Sigma_{\bm{\beta}} + \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\cdot \bm{\beta}^\top \bm{X}^\top \bm{Y} - \frac{1}{2}\bm{\beta}^\top \Sigma_{\bm{\beta}}^{-1} \bm{\beta} -  \\
-	& \quad \frac{1}{2} \mathbb{E}_q^{2}\left[\frac{1}{\sigma^2} \right] \bm{Y}^\top \bm{X} \Sigma_{\bm{\beta}} \bm{X}^\top \bm{Y} + \text{const}\\
+	\log q_1(\bm{\beta}) &= -\frac{1}{2} \log \det \Sigma_{\bm{\beta}} + \frac{1}{2} \mathbb{E}_q\left[\frac{1}{\sigma^2} \right]\cdot \bm{\beta}^\top \bm{X}^\top \bm{Y} - \frac{1}{2}\bm{\beta}^\top \Sigma_{\bm{\beta}}^{-1} \bm{\beta} + \text{const}  \\
 	\log q_2(\sigma^2) &= -(n/2+1)\log \sigma^2 - \frac{1}{2\sigma^2} \mathbb{E}_{q}\left[ (\bm{Y} - \bm{X}\bm{\beta})^\top (\bm{Y} - \bm{X}\bm{\beta}) \right] + \text{const} \\
 	\log q_3(\sigma_{\beta}^2) &= -\frac{p+3}{2}\log \sigma_{\beta}^2 - \frac{1}{\sigma_{\beta}^2}\left( \frac{1}{2}\mathbb{E}_{q}[\bm{\beta}^\top \bm{\beta}] + \mathbb{E}_q[1/a_\beta] \right) + \text{const} \\
 	\log q_4(a_\beta) &= -2\log a_\beta - \frac{1}{a_\beta} \left( \mathbb{E}_{q}[1/\sigma_{\beta}^2]+1 \right) + \text{const}
@@ -173,7 +174,7 @@ Based on these formulas, I can derive the Mean File Variational Bayes algorithm 
 		\State $\bm{\beta}_0 \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{0}} + \frac{1}{\sigma_{\beta, 0}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2_{0}}\bm{X}^\top \bm{Y}$
 		\State $V_{\beta, 0} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{0}} + \frac{1}{\sigma_{\beta, 0}^2} \mathbb{I}_{p} \right)^{-1}$
 		\State $a_{\beta, 0}^{-1} \gets 1/(1+\sigma_{\beta, 0}^{-2})$
-		\State $\text{ELBO}_{0} \gets \frac{1}{2}\log \det V_{\bm{\beta}, 0} - \frac{1}{\sigma_{0}^{2}}\bm{\beta}_{0}^{\top} \bm{X}^\top \bm{Y} + \frac{1}{2\sigma_{0}^{2}} \bm{\beta}_{0}^{\top} \bm{X}^\top \bm{X} \bm{\beta}_{0} + \frac{1}{2\sigma_{\bm{\beta}, 0}^{2}}\bm{\beta}_{0}^{ \top} \bm{\beta}_{0} + \frac{1}{2}\frac{1}{\sigma_{0}^{2}\cdot \sigma_{0}^{2}}\bm{Y}^{\top} \bm{X} V_{\bm{\beta}, 0} \bm{X}^{\top} \bm{Y} + \frac{1}{a_{\bm{\beta}, 0} \sigma_{\bm{\beta}, 0}^{2}}$
+		\State $\text{ELBO}_{0} \gets \frac{1}{2}\log \det V_{\bm{\beta}, 0} - \frac{1}{2\sigma_{0}^{2}}\bm{\beta}_{0}^{\top} \bm{X}^\top \bm{Y} + \frac{1}{2\sigma_{0}^{2}} \bm{\beta}_{0}^{\top} \bm{X}^\top \bm{X} \bm{\beta}_{0} + \frac{1}{2\sigma_{\bm{\beta}, 0}^{2}}\bm{\beta}_{0}^{ \top} \bm{\beta}_{0} + \frac{1}{a_{\bm{\beta}, 0} \sigma_{\bm{\beta}, 0}^{2}}$
 		\State $i \gets 0$
 		\While {$i=0$ or $\left\vert\text{ELBO}_i - \text{ELBO}_{i-1}\right\vert > \delta$}
 		\State $\sigma_{i+1}^{-2} \gets \frac{n}{(\bm{Y} - \bm{X}\bm{\beta}_{i})^{\top} (\bm{Y} - \bm{X}\bm{\beta}_{i})}$
@@ -181,7 +182,7 @@ Based on these formulas, I can derive the Mean File Variational Bayes algorithm 
 		\State $\bm{\beta}_{i+1} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i+1}} + \frac{1}{\sigma_{\beta, i+1}^2} \mathbb{I}_{p} \right)^{-1} \cdot \frac{1}{\sigma^2_{i+1}}\bm{X}^\top \bm{Y}$
 		\State $V_{\beta, i+1} \gets \left(\frac{\bm{X}^\top \bm{X}}{\sigma^2_{i+1}} + \frac{1}{\sigma_{\beta, i+1}^2} \mathbb{I}_{p} \right)^{-1}$
 		\State $a_{\beta, i+1}^{-1} \gets 1/(1+\sigma_{\beta, i+1}^{-2})$
-		\State $\text{ELBO}_{i+1} \gets \frac{1}{2}\log \det V_{\bm{\beta}, i+1} - \frac{1}{\sigma_{i+1}^{2}}\bm{\beta}_{i+1}^{\top} \bm{X}^\top \bm{Y} + \frac{1}{2\sigma_{i+1}^{2}} \bm{\beta}_{i+1}^{\top} \bm{X}^\top \bm{X} \bm{\beta}_{i+1} + \frac{1}{2\sigma_{\bm{\beta}, i+1}^{2}}\bm{\beta}_{i+1}^{ \top} \bm{\beta}_{i+1} + \frac{1}{2}\frac{1}{\sigma_{i+1}^{2}\cdot \sigma_{i+1}^{2}}\bm{Y}^{\top} \bm{X} V_{\bm{\beta}, i+1} \bm{X}^{\top} \bm{Y} + \frac{1}{a_{\bm{\beta}, i+1} \sigma_{\bm{\beta}, i+1}^{2}}$
+		\State $\text{ELBO}_{i+1} \gets \frac{1}{2}\log \det V_{\bm{\beta}, i+1} - \frac{1}{2\sigma_{i+1}^{2}}\bm{\beta}_{i+1}^{\top} \bm{X}^\top \bm{Y} + \frac{1}{2\sigma_{i+1}^{2}} \bm{\beta}_{i+1}^{\top} \bm{X}^\top \bm{X} \bm{\beta}_{i+1} + \frac{1}{2\sigma_{\bm{\beta}, i+1}^{2}}\bm{\beta}_{i+1}^{ \top} \bm{\beta}_{i+1} + \frac{1}{a_{\bm{\beta}, i+1} \sigma_{\bm{\beta}, i+1}^{2}}$
 		\State $i\gets i+1$
 		\EndWhile
 	\end{algorithmic}

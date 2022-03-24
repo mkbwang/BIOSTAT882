@@ -143,6 +143,8 @@ public:
       update_E_Xbeta_sq();
       update_E_SSE();
       update_E_beta_innerproduct();
+      update_ELBO();
+
       update_E_inv_sigma_sq();
       update_E_inv_sigma_beta_sq();
     }
@@ -338,9 +340,9 @@ public:
     double logdet_sign;
     log_det(logdet_val,logdet_sign,vb_paras.Cov_beta);
     vb_paras.ELBO = 0.5 * logdet_val;
-    vb_paras.ELBO -= vb_paras.E_inv_sigma_sq * dot(vb_paras.E_beta, dat.Xty);
+    vb_paras.ELBO -= 0.5 * vb_paras.E_inv_sigma_sq * dot(vb_paras.E_beta, dat.Xty);
     vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_sq *dot(dat.X * vb_paras.E_beta, dat.X * vb_paras.E_beta);
-    vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_sq * vb_paras.E_inv_sigma_sq * as_scalar(dat.Xty.t() * vb_paras.Cov_beta * dat.Xty);
+    // vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_sq * vb_paras.E_inv_sigma_sq * as_scalar(dat.Xty.t() * vb_paras.Cov_beta * dat.Xty);
     vb_paras.ELBO += 0.5 * vb_paras.E_inv_sigma_beta_sq * dot(vb_paras.E_beta, vb_paras.E_beta);
     vb_paras.ELBO += vb_paras.E_inv_sigma_beta_sq * vb_paras.E_inv_a_beta;
   };
@@ -388,6 +390,14 @@ public:
       update_Cov_beta();
       // std::cout << "Covariance of beta: " << vb_paras.Cov_beta << std::endl;
       update_E_beta();
+      // std::cout << "Expectation of beta: " << vb_paras.E_beta << std::endl;
+      update_E_inv_a_beta();
+      update_E_Xbeta_sq();
+      update_E_SSE();
+      // std::cout << "SSE: " << vb_paras.E_SSE << std::endl;
+      update_E_beta_innerproduct();
+      
+      
       if(vb_control.ELBO_stop == 0){
         update_ELBO();
         // std::cout << "ELBO: " << vb_profile.ELBO << std::endl;
@@ -406,18 +416,13 @@ public:
           break;
         }
       }
-      // std::cout << "Expectation of beta: " << vb_paras.E_beta << std::endl;
-      update_E_inv_a_beta();
-      update_E_Xbeta_sq();
-      update_E_SSE();
-      // std::cout << "SSE: " << vb_paras.E_SSE << std::endl;
-      update_E_beta_innerproduct();
+      
+      save_vb_profile();
+      monitor_vb();
+
       update_E_inv_sigma_sq();
       update_E_inv_sigma_beta_sq();
       
-
-      save_vb_profile();
-      monitor_vb();
     }
   };
   

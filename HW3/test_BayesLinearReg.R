@@ -38,7 +38,7 @@ Rmse1 <- c(mfvb =  mean((mfvb_fit1$post_mean$beta - c(dat1$intercept, dat1$beta)
 
 print(Rmse1)
 with(gibbs_fit1$trace,plot(iters,logpost,type="l"))
-with(mfvb_fit$trace,plot(iters,ELBO,type="l"))
+with(mfvb_fit1$trace,plot(iters,ELBO,type="l"))
 
 
 
@@ -65,7 +65,7 @@ system.time(mfvb_fit2 <- Bayes_linear_reg(dat2$y,dat2$X,method="MFVB",
                                            include_intercept = TRUE,
                                            max_iter = 1000,
                                            paras_diff_tol = 1e-8,
-                                           ELBO_stop = 0,
+                                           ELBO_stop = 1,
                                            ELBO_diff_tol = 1e-8,
                                            verbose = 1000))
 
