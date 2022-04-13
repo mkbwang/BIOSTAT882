@@ -10,17 +10,6 @@ using namespace arma;
 
 // utility functions
 
-// [[Rcpp::export]]
-vec log1pexp_fast(vec& x){
-  vec y = x;
-  uvec ids = find(x <= -37.0);
-  y.elem(ids) = exp(x.elem(ids));
-  ids = find(x > -37.0 && x <= 18);
-  y.elem(ids) = log1p(exp(x.elem(ids)));
-  ids = find(x > 18.0 && x <= 33.3);
-  y.elem(ids) = x.elem(ids) + exp(-x.elem(ids));
-  return y;
-}
 
 // [[Rcpp::export]]
 arma::vec probit(arma::vec& y, bool islower=true, bool takelog=false) {
@@ -33,15 +22,12 @@ arma::vec probit(arma::vec& y, bool islower=true, bool takelog=false) {
   return probs;
 }
 
-double kernel(double x1, double x2){
-    double value = exp(- (x1-x2) * (x1-x2) / 2);
+double kernel(double x1, double x2, double ell=10000){
+    // simple matern kernel
+    double value = exp(-abs(x1-x2) / ell);
     return value;   
 }
 
-arma::vec gaussian(arma::vec& y){
-  arma::vec density = arma::exp(- y % y / 2) / std::sqrt(2 * arma::datum::pi);
-  return density;
-}
 
 arma::vec tnorm(arma::vec& x, arma::vec& y){
     // y are binary outcomes, x are the link function values
@@ -90,6 +76,7 @@ class BayesShrinkageGPReg{
             mat f_val; // function value for all the covariates
             double alpha; // common intercept
             vec z; // auxiliary assistive variable for probit distribution
+            double loglik; // likelihood
         } paras;
 
         struct MCMCSample{
@@ -124,35 +111,33 @@ class BayesShrinkageGPReg{
             dat.n = dat.X.n_rows;
 
             // calculate the kernel function for all the covariates
-            dat.K.zeros(n, n, p);
-            dat.V.zeros(n, n, p);
-            dat.D.zeros(n, p);
+            dat.K.zeros(dat.n, dat.n, dat.p);
+            dat.V.zeros(dat.n, dat.n, dat.p);
+            dat.D.zeros(dat.n, dat.p);
 
-            for (int i=0; i<p; i++){
+            for (int i=0; i<dat.p; i++){
                 mat temp_K;
-                temp_K.zeros(n, n);
+                temp_K.zeros(dat.n, dat.n);
                 mat temp_V;
-                temp_V.zeros(n, n);    
+                temp_V.zeros(dat.n, dat.n);    
                 vec temp_D;
-                temp_D.zeros(n);
+                temp_D.zeros(dat.n);
 
-                for (int j=0; j<n; j++){ // off diagonal terms of K
+                for (int j=0; j<dat.n; j++){ // off diagonal terms of K
                     double x1 = dat.X(j, i);
-                    for (int k=j+1; k<n; k++){
+                    for (int k=j+1; k<dat.n; k++){
                         double x2 = dat.X(k, i);
                         temp_K(j, k) = kernel(x1, x2);
                     }
                 }
 
                 temp_K = temp_K.t() + temp_K;
-                for(int j=0; j<n; j++){ // diagonal terms of K
-                    double x1 = dat.X(j, i);
-                    temp_K(j, j) = kernel(x1, x1);
+                for(int j=0; j<dat.n; j++){ // diagonal terms of K
+                    temp_K(j, j) = 1;
                 }
 
                 // eigen decomposition
-                eig_sym(temp_D, temp_V, temp_K);
-
+                bool success = eig_sym(temp_D, temp_V, temp_K);
                 dat.K.slice(i) = temp_K;
                 dat.D.col(i) = temp_D;
                 dat.V.slice(i) = temp_V;
@@ -173,12 +158,12 @@ class BayesShrinkageGPReg{
             paras.inv_sigma_sq = randg(distr_param(1.0/2, 1.0/paras.inv_a));
             paras.alpha = randn() / sqrt(paras.inv_sigma_sq);
             vec intermediate = randu(dat.p);
-            vec threshold = ones(dat.p) * hyperparas.prob;
-            paras.delta = intermediate < threshold;
+            paras.delta = conv_to<vec>::from(intermediate < ones(dat.p)*hyperparas.prob );
             vec prior_means = zeros(dat.n);
 
+            paras.f_val.zeros(dat.n, dat.p);    
             for(int i=0; i<dat.p; i++){
-                mat covar_mat = dat.K.slice(i) / sqrt(paras.inv_sigma_sq);
+                mat covar_mat = dat.K.slice(i) / paras.inv_sigma_sq;
                 paras.f_val.col(i) = mvrnormArma(prior_means, covar_mat);
             }
 
@@ -194,19 +179,114 @@ class BayesShrinkageGPReg{
             gibbs_control.verbose = in_verbose;
             gibbs_control.save_profile = in_save_profile;
             if(gibbs_control.save_profile > 0){
-            gibbs_control.total_profile = gibbs_control.total_iter/gibbs_control.save_profile;
+                gibbs_control.total_profile = gibbs_control.total_iter/gibbs_control.save_profile;
             } else{
-            gibbs_control.total_profile = 0;
+                gibbs_control.total_profile = 0;
             }
         };
 
 
-        /*TODO: update parameters and likelihoods
 
+        void update_z(){
+            vec link = paras.f_val * paras.delta + paras.alpha; // link function value
+            paras.z = tnorm(link, dat.y);                
+        };
 
+        void update_selected_f(){
+            // update the function values for covariates that are currently selected
+            for (int i=0; i<dat.p; i++){
+                if (paras.delta(i) == 0){
+                    continue; // function not selected doesn't need to change here
+                }
+                vec D_i = dat.D.col(i);
+                vec inv_D_i = 1.0 / D_i;
+                vec intermediate = 1.0 / sqrt(paras.inv_sigma_sq * inv_D_i + 1.0);
+                vec link = paras.f_val * paras.delta + paras.alpha;
+                vec observed_f_i = paras.z - link + paras.f_val.col(i);
+                vec rho = randn(size(observed_f_i));
+                paras.f_val.col(i) = dat.V.slice(i) * (intermediate % (rho + intermediate % observed_f_i));
+            }
+        }
+        
+        void update_alpha(){
+            // normal normal conjugate
+            vec w = paras.z - paras.f_val * paras.delta;
+            double var_alpha = 1.0/(dat.n + paras.inv_sigma_sq);
+            double mean_alpha = var_alpha * accu(w);
+            paras.alpha = mean_alpha + randn() * sqrt(var_alpha);
+        }
 
-        */
+        void update_inv_sigma_sq(){
+            // normal inverse gamma conjugate
+            double gamma_a = 0.5; // prior parameter for gamma distribution
+            double gamma_b = paras.inv_a; // prior parameter for gamma distribution
+            // first add the contribution of alpha
+            gamma_a += 0.5;
+            gamma_b += paras.alpha * paras.alpha / 2;
+            // then add the contribution of all the covariates that are currently included
+            for (int i=0; i<dat.p; i++){
+                if (paras.delta(i) == 0){
+                    continue;
+                }
+                gamma_a += dat.n / 2.0;
+                vec D_i = dat.D.col(i);
+                vec inv_sqrt_D_i = 1.0 / sqrt(D_i);
+                mat V_i = dat.V.slice(i);
+                vec intermediate = inv_sqrt_D_i % (V_i.t() * paras.f_val.col(i));
+                gamma_b += accu(intermediate % intermediate) / 2.0;
+            }
+            paras.inv_sigma_sq = randg(distr_param(gamma_a, 1.0/gamma_b));
+        }
 
+        void update_unselected_f(){
+            // update the function values for covariates that are currently unselected
+            // based on gaussian process with the new sigma_sq
+            for (int i=0; i<dat.p; i++){
+                if (paras.delta(i) == 1){
+                    continue;
+                }
+                vec prior_mean = zeros(dat.n);
+                mat covar_mat = dat.K.slice(i) / paras.inv_sigma_sq;
+                paras.f_val.col(i) = mvrnormArma(prior_mean, covar_mat);
+            }
+        }
+
+        void update_inv_a(){
+            // update the auxiliary variable a for half cauchy distribution
+            double new_gamma_a = 1;
+            double new_gamma_b = paras.inv_sigma_sq + hyperparas.inv_A_sq;
+            paras.inv_a = randg(distr_param(new_gamma_a, 1.0/new_gamma_b));
+        }
+
+        void update_delta(){
+            // update the deltas based on posterior binomial distribution
+            for (int i=0; i<dat.p; i++){
+                vec temp_delta = paras.delta;
+                // get the probability when the pixel of interest is not selected
+                temp_delta(i) = 0;
+                vec link_off = paras.f_val * temp_delta + paras.alpha;
+                vec probs_off = probit(link_off); // probabilities
+                vec liks_off = abs(1.0 - dat.y - probs_off);
+                // get the probability when the pixel of interest is selected
+                temp_delta(i) = 1;
+                vec link_on = paras.f_val * temp_delta + paras.alpha;
+                vec probs_on = probit(link_on); // probabilities
+                vec liks_on = abs(1.0 - dat.y - probs_on);
+
+                double post_logit = accu(log(liks_on)) + log(hyperparas.prob) - log(1.0 - hyperparas.prob) -
+                        accu(log(liks_off));
+                
+                double post_prob = 1.0 / (1.0 + exp(-post_logit));
+                paras.delta(i) = (randu() < post_prob)? 1 : 0;
+            }
+        }
+
+        void update_loglik(){
+            vec link = paras.f_val * paras.delta + paras.alpha;
+            vec probs = probit(link); // probability for all observations
+            vec liks = abs(1 - dat.y - probs);
+            paras.loglik = accu(log(liks));
+        }
 
         // traces of parameters and likelihoods
 
@@ -238,32 +318,67 @@ class BayesShrinkageGPReg{
 
 
         void save_gibbs_profile(){
-
+            if(gibbs_control.save_profile > 0){
+                if(iter%gibbs_control.save_profile==0){
+                    int profile_iter = iter/gibbs_control.save_profile;
+                    update_loglik();
+                    gibbs_profile.loglik(profile_iter) = paras.loglik;
+                }
+            }
         };
 
         void monitor_gibbs(){
-
+            if(gibbs_control.verbose > 0){
+                if(iter%gibbs_control.verbose==0){
+                    std::cout << "iter: " << iter << " sigma_sq "<< 1.0/paras.inv_sigma_sq  << " loglik: "<< paras.loglik <<  std::endl;
+                }
+            }
         };
 
         void run_gibbs(){
-
+            initialize_paras_sample();
+            initialize_gibbs_profile();
+            for(iter=0; iter<gibbs_control.total_iter;iter++){
+                update_z();
+                update_selected_f();
+                update_alpha();
+                update_inv_sigma_sq();
+                update_unselected_f();
+                update_inv_a();
+                update_delta();
+                save_paras_sample();
+                save_gibbs_profile();
+                monitor_gibbs();
+            }
         };
 
         // outputs
 
         List get_gibbs_post_mean(){
-
+            List output;
+            vec delta_mean = mean(paras_sample.delta, 1);
+            output = List::create(Named("delta") = delta_mean,
+                        Named("sigma_sq") = mean(paras_sample.sigma_sq),
+                        Named("alpha") = mean(paras_sample.alpha));
+            return output;
         };
 
 
 
         List get_gibbs_sample(){
-
+            List output;
+            output = List::create(Named("delta") = paras_sample.delta,
+                          Named("sigma_sq") = paras_sample.sigma_sq,
+                          Named("alpha") = paras_sample.alpha,
+                          Named("f_val") = paras_sample.f_val);
+            return output;
         };
 
 
         List get_gibbs_trace(){
-
+            uvec iters = linspace<uvec>(1,gibbs_control.total_iter,gibbs_control.total_profile);
+            return List::create(Named("iters") = iters,
+                        Named("loglik") = gibbs_profile.loglik);
         };
 
 
@@ -281,31 +396,69 @@ class BayesShrinkageGPReg{
             return iter;
         };
 
-}
+};
 
 
 //[[Rcpp::export]]
-List simul_dat_linear(int n, double intercept, vec& beta, double X_rho, double X_sd,
-                      double R_sq = 0.9){
+List simul_dat_Probit(int n, double intercept, vec& beta, double X_rho, double X_sd){
   double sqrt_X_rho = sqrt(X_rho);
   mat X = X_sd*sqrt(1.0-X_rho)*randn<mat>(n,beta.n_elem);
   vec Z = X_sd*sqrt_X_rho*randn<vec>(n);
   for(int j=0; j<X.n_cols;j++){
     X.col(j) += Z;
   }
-  
-  vec mu = intercept + X*beta;
-  double sigma_sq = (1 - R_sq)/R_sq*var(mu);
-  vec epsilon = sqrt(sigma_sq)*randn<vec>(n);
-  vec y = mu + epsilon;
+  vec link = intercept + X*beta;
+  vec prob = probit(link, true, false);
+  vec u = randu<vec>(n);
+  vec y = conv_to<vec>::from(u < prob);
+  double R2 = var(prob)/var(y);
   return List::create(Named("y") = y,
                       Named("X") = X,
-                      Named("mu") = mu,
+                      Named("prob") = prob,
                       Named("intercept") = intercept,
                       Named("beta") = beta,
                       Named("X_rho") = X_rho,
                       Named("X_sd") = X_sd,
-                      Named("R_sq") = R_sq,
-                      Named("sigma_sq") = sigma_sq);
-}
+                      Named("R2") = R2);
+};
+
+
+//[[Rcpp::export]]
+List Bayes_shrinkage_GP_reg(
+    vec& y, mat& X, 
+    double prior_delta_prob=0.5,
+    double A = 1, 
+    int mcmc_sample = 500, 
+    int burnin = 5000, 
+    int thinning = 10,
+    int verbose = 5000,
+    int save_profile = 1){
+
+    wall_clock timer;
+    timer.tic();
+
+    BayesShrinkageGPReg model;
+    model.load_data(y, X);
+    model.set_hyperparas(A, prior_delta_prob);
+    model.set_gibbs_control(mcmc_sample,
+                            burnin,
+                            thinning,
+                            verbose,
+                            save_profile);
+    
+    model.set_paras_initial_values();
+    model.run_gibbs(); 
+
+    double elapsed = timer.toc();
+
+    List output;
+    output = List::create(Named("post_mean") = model.get_gibbs_post_mean(),
+                          Named("mcmc") = model.get_gibbs_sample(),
+                          Named("trace") = model.get_gibbs_trace(),
+                          Named("mcmc_control") = model.get_gibbs_control(),
+                          Named("elapsed") = elapsed);
+    
+    return output;
+
+};
 
