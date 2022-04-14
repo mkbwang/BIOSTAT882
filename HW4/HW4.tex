@@ -1,0 +1,133 @@
+\documentclass[12pt]{article}
+\usepackage{paralist,amsmath,amssymb,thumbpdf,lmodern}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{physics}
+\usepackage{amsfonts}
+\usepackage{bbm}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{diagbox}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{caption}
+\usepackage{bm}
+\usepackage{makecell}
+\usepackage{ifxetex,ifluatex}
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname IncludeInRelease\endcsname\relax
+  \usepackage{fixltx2e}
+\fi
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\usepackage{newtxtext,newtxmath}
+
+\title{Biostat 882 HW4}
+\date{}
+\author{Mukai Wang 98830336}
+
+\makeatletter
+\newenvironment{breakablealgorithm}
+{% \begin{breakablealgorithm}
+		\begin{center}
+			\refstepcounter{algorithm}% New algorithm
+			\hrule height.8pt depth0pt \kern2pt% \@fs@pre for \@fs@ruled
+			\renewcommand{\caption}[2][\relax]{% Make a new \caption
+				{\raggedright\textbf{\fname@algorithm~\thealgorithm} ##2\par}%
+				\ifx\relax##1\relax % #1 is \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
+				\else % #1 is not \relax
+				\addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
+				\fi
+				\kern2pt\hrule\kern2pt
+			}
+		}{% \end{breakablealgorithm}
+		\kern2pt\hrule\relax% \@fs@post for \@fs@ruled
+	\end{center}
+}
+\makeatother
+
+
+\begin{document}
+\maketitle
+
+I am using gibbs sampler to finish this problem. 
+
+
+\begin{breakablealgorithm}
+	\caption{Gibbs Sampler for Gaussian Process Shrinkage Regression}\label{GPSR}
+	\hspace*{\algorithmicindent} \textbf{Input}   Response Variable $ \bm{y}$  with length $n$, Covariate matrix $\bm{X}$ with dimension $n\times p$, Gaussian Process kernel $\kappa$, spike-slab probability $\pi$, half Cauchy distribution parameter $A$, Number of Iterations $M$ 
+	
+	\begin{algorithmic}[1]
+		\State $a \sim \mathcal{IG}(0.5, 1/A^2)$
+		\State $\sigma^{2} \sim \mathcal{IG}(0.5, 1/a)$
+		\State $\alpha \sim \mathcal{N}(0, \sigma^2)$
+		\For {$j \gets 1$ to $p$}
+			\State $K_{j} \gets \kappa (\text{dist}(\bm{x}_{j}))$ \Comment{Calculate kernel matrix for each pixel}
+			\State $V_{j}, D_{j} \gets \text{eig}(K_{j})$ \Comment{Eigen Decomposition}
+			\State $f_{j}(\bm{x}_{j}) \sim \mathcal{N}(\bm{0}, \sigma^2 K_{j})$\Comment{Generate function value for each pixel across samples}
+			\State $\delta_{j} \sim \text{Bernoulli}(\pi)$
+		\EndFor
+		\For {$m \gets 0$ to $M-1$} \Comment{Gibbs Sampling}
+			\For {$i \gets 1$ to $n$} \Comment{Auxiliary variable $\bm{z}$ for probit link}
+				\State $\eta_{i} \gets \alpha + \sum_{j=1}^{p}\delta_{j} f_{j}(x_{ij})$
+				\If{$y_i > 0$}
+					\State $z_i \gets \text{truncnorm}(\eta_{i}, 1, 0, \infty)$
+				\Else
+					\State $z_i \gets \text{truncnorm}(\eta_{i}, 1, -\infty, 0)$
+				\EndIf
+			\EndFor
+			\For {$j \gets 1$ to $p$} \Comment{Update functions whose $\delta$ isn't zero}
+				\If {$\delta_j \neq  0$}
+					\State $\bm{w}_{j} \gets \bm{z} - \sum_{q\neq j}\delta_{q} f_{q}(\bm{x}_{q}) - \alpha$
+					\State $\xi_{j} \sim \mathcal{N}(\bm{0}, \mathbb{I}_{n})$
+					\State $f_{j}(\bm{x}_{j}) \gets V_{j} (\sigma^{-2} D_{j}^{-1} + \mathbb{I}_{n})^{-1/2} \{ \xi_{j} + (\sigma^{-2} D_{j}^{-1} + \mathbb{I}_{n})^{-1/2} \bm{w}_{j} \}$
+				\EndIf
+			\EndFor
+			\State $\bm{w} \gets \bm{z} - \sum_{j=1}^{p}\delta_{j} f_{j}(\bm{x}_{j})$ 
+			\State $\alpha \sim \mathcal{N}\left(n+\sigma^{-2})^{-1} \sum_{i=1}^{n} w_{i}, (n+\sigma^{-2})^{-1}\right)$ \Comment{Update $\alpha$}
+			\State $\sigma^{2} \sim \mathcal{IG}\left(1 + \frac{n}{2}\sum_{j=1}^{p}\delta_{i}, \frac{1}{a}+ \sum_{j=1}^{p} \delta_{j} \cdot \frac{f_{j}^{\top}(\bm{x}_{j}) K_{j}^{-1} f_{j}(\bm{x}_{j})}{2} + \frac{\alpha^2}{2} \right)$ \Comment{Update $\sigma^2$}
+			\State $a \sim \mathcal{IG}\left(1, \sigma^{-2} + A^{-2}\right)$
+			\For {$j \gets 1$ to $p$} \Comment{Update functions whose $\delta$ is zero}
+				\If {$\delta_j = 0$}
+					\State $f_{j}(\bm{x}_{j}) \sim \mathcal{N}\left(\bm{0}, \sigma^2 K_{j} \right)$
+				\EndIf
+			\EndFor
+			
+			\For {$j \gets 1$ to $p$} \Comment{Update $\delta$}
+				\State $\bm{\eta} \gets \alpha + \sum_{q \neq j} \delta_{q} f_{q}(\bm{x}_{q})$ \Comment{Link function value when $\delta_j = 0$}
+				\State $\bm{\eta}' \gets \alpha + \sum_{q \neq j} \delta_{q} f_{q}(\bm{x}_{q}) + f_{j}(\bm{x}_{j})$ \Comment{Link function value when $\delta_j = 1$}
+				\State $\ell \gets \sum_{i=1}^{n} y_{i} \log(\Phi(\eta_{i}')) + \sum_{i=1}^{n} (1 - y_{i}) \log(1 - \Phi(\eta_{i}')) - \sum_{i=1}^{n} y_{i} \log(\Phi(\eta_{i})) - \sum_{i=1}^{n} (1 - y_{i}) \log(1 - \Phi(\eta_{i})) + \log(\pi) - \log(1-\pi)$ \Comment{Log odds}
+				\State $\delta_{j} \
+				\sim \text{Bernoulli}\left(\frac{\exp(\ell)}{1+\exp(\ell)} \right)$
+			\EndFor
+		\EndFor
+	\end{algorithmic}
+	
+	\hspace*{\algorithmicindent} \textbf{Output} Traces of $\sigma^2$, $\alpha$, $f_{j}(\bm{x_j})$ and  $\delta_j $, $j=1,2,\cdots p$
+\end{breakablealgorithm}
+
+
+\end{document}
