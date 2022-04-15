@@ -22,7 +22,7 @@ arma::vec probit(arma::vec& y, bool islower=true, bool takelog=false) {
   return probs;
 }
 
-double kernel(double x1, double x2, double ell=10000){
+double kernel(double x1, double x2, double ell=500){
     // simple matern kernel
     double value = exp(-abs(x1-x2) / ell);
     return value;   
@@ -77,6 +77,7 @@ class BayesShrinkageGPReg{
             double alpha; // common intercept
             vec z; // auxiliary assistive variable for probit distribution
             double loglik; // likelihood
+            double logpost; // log posterior likelihood
         } paras;
 
         struct MCMCSample{
@@ -88,6 +89,7 @@ class BayesShrinkageGPReg{
 
         struct GibbsSamplerProfile{
             vec loglik;
+            vec logpost;
         } gibbs_profile;
   
         struct GibbsSamplerControl{
@@ -288,6 +290,26 @@ class BayesShrinkageGPReg{
             paras.loglik = accu(log(liks));
         }
 
+        void update_logpost(){
+            paras.logpost = paras.loglik;
+            double gpkernel = 0;
+            for (int i=0; i<dat.p; i++){
+                vec D_i = dat.D.col(i);
+                vec inv_sqrt_D_i = 1.0 / sqrt(D_i);
+                mat V_i = dat.V.slice(i);
+                vec intermediate = inv_sqrt_D_i % (V_i.t() * paras.f_val.col(i));
+                gpkernel -= accu(intermediate % intermediate) / 2;
+            }
+            // log prior of all the function values(GP)
+            paras.logpost += gpkernel + dat.n * dat.p / 2 * log(paras.inv_sigma_sq);
+            // log prior of all the deltas(bernoulli)
+            paras.logpost += accu(log(abs(1.0 - paras.delta - hyperparas.prob)));
+            // log prior of alpha(normal)
+            paras.logpost += 0.5 * log(paras.inv_sigma_sq) - paras.inv_sigma_sq * paras.alpha * paras.alpha / 2;
+            // log prior of inv sigma square(half cauchy, aka multilevel inverse gamma)
+            paras.logpost += -0.5 * log(paras.inv_sigma_sq) - paras.inv_a * (paras.inv_sigma_sq + hyperparas.inv_A_sq);
+        }
+
         // traces of parameters and likelihoods
 
         void initialize_paras_sample(){
@@ -313,6 +335,7 @@ class BayesShrinkageGPReg{
         void initialize_gibbs_profile(){
             if(gibbs_control.save_profile>0){
                 gibbs_profile.loglik.zeros(gibbs_control.total_profile);
+                gibbs_profile.logpost.zeros(gibbs_control.total_profile);
             }
         };
 
@@ -322,7 +345,9 @@ class BayesShrinkageGPReg{
                 if(iter%gibbs_control.save_profile==0){
                     int profile_iter = iter/gibbs_control.save_profile;
                     update_loglik();
+                    update_logpost();
                     gibbs_profile.loglik(profile_iter) = paras.loglik;
+                    gibbs_profile.logpost(profile_iter) = paras.logpost;
                 }
             }
         };
@@ -330,7 +355,7 @@ class BayesShrinkageGPReg{
         void monitor_gibbs(){
             if(gibbs_control.verbose > 0){
                 if(iter%gibbs_control.verbose==0){
-                    std::cout << "iter: " << iter << " sigma_sq "<< 1.0/paras.inv_sigma_sq  << " loglik: "<< paras.loglik <<  std::endl;
+                    std::cout << "iter: " << iter << " loglik: "<< paras.loglik << "logpost: " << paras.logpost <<   std::endl;
                 }
             }
         };
@@ -378,7 +403,8 @@ class BayesShrinkageGPReg{
         List get_gibbs_trace(){
             uvec iters = linspace<uvec>(1,gibbs_control.total_iter,gibbs_control.total_profile);
             return List::create(Named("iters") = iters,
-                        Named("loglik") = gibbs_profile.loglik);
+                        Named("loglik") = gibbs_profile.loglik,
+                        Named("logpost") = gibbs_profile.logpost);
         };
 
 
@@ -431,7 +457,7 @@ List Bayes_shrinkage_GP_reg(
     int mcmc_sample = 500, 
     int burnin = 5000, 
     int thinning = 10,
-    int verbose = 5000,
+    int verbose = 100,
     int save_profile = 1){
 
     wall_clock timer;
@@ -462,3 +488,75 @@ List Bayes_shrinkage_GP_reg(
 
 };
 
+//[[Rcpp::export]]
+arma::mat GPpredict(mat& train_x, mat& sample_f_x, mat& test_x, double sigma2){
+
+    const int train_n = train_x.n_rows;
+    const int test_n = test_x.n_rows;
+    const int num_feature = train_x.n_cols;
+
+    mat predicted_f = zeros(test_n, num_feature);
+
+    for (int i=0; i<num_feature; i++){
+        mat kernel_test_train = zeros(test_n, train_n);
+        mat kernel_train_train = zeros(train_n, train_n);
+        mat kernel_test_test = zeros(test_n, test_n);
+        vec train_vec = train_x.col(i);
+        vec test_vec = test_x.col(i);
+        vec train_f = sample_f_x.col(i);
+
+        // calculate the kernel for training data
+        for (int j=0; j<train_n; j++){
+            double x1 = train_vec(j);
+            for (int k=j+1; k<train_n; k++){
+                double x2 = train_vec(k);
+                kernel_train_train(j, k) = kernel(x1, x2);
+            } 
+        }
+        kernel_train_train = kernel_train_train.t() + kernel_train_train;
+        for (int j=0; j<train_n; j++){
+            kernel_train_train(j, j) = 1;
+        }
+
+        mat inv_kernel_train_train = inv_sympd(kernel_train_train);
+        //std::cout << "train kernel " << i << ": " << inv_kernel_train_train.is_sympd() << std::endl;
+
+
+        // calculate the kernel for test data
+        for (int j=0; j<test_n; j++){
+            double x1 = test_vec(j);
+            for (int k=j+1; k<test_n; k++){
+                double x2 = test_vec(k);
+                kernel_test_test(j, k) = kernel(x1, x2);
+            }
+        } 
+        kernel_test_test = kernel_test_test.t() + kernel_test_test;
+        for (int j=0; j<test_n; j++){
+            kernel_test_test(j, j) = 1;
+        }
+        //std::cout << "test kernel " << i << ": " << kernel_test_test.is_sympd() << std::endl;
+
+        // calculate the kernel from test data to training data
+        for (int j=0; j<test_n; j++){
+            double x1 = test_vec(j);
+            for (int k=0; k<train_n; k++){
+                double x2 = train_vec(k);
+                kernel_test_train(j, k) = kernel(x1, x2);
+            }
+        }
+
+        vec pred_mean = kernel_test_train * inv_kernel_train_train * train_vec;
+        // numerical issues with matrix times transpose of matrix
+        mat intermediate = kernel_test_train * inv_kernel_train_train *  kernel_test_train.t();
+        mat intermediate_avoid_error = (intermediate + intermediate.t()) / 2.0;
+        
+        mat pred_var = kernel_test_test - intermediate_avoid_error;
+        
+
+        predicted_f.col(i) = mvrnormArma(pred_mean, pred_var);
+
+    }
+
+    return predicted_f;
+    
+};
