@@ -22,7 +22,7 @@ arma::vec probit(arma::vec& y, bool islower=true, bool takelog=false) {
   return probs;
 }
 
-double kernel(double x1, double x2, double ell=500){
+double kernel(double x1, double x2, double ell=4){
     // simple matern kernel
     double value = exp(-abs(x1-x2) / ell);
     return value;   
@@ -48,7 +48,11 @@ arma::vec tnorm(arma::vec& x, arma::vec& y){
 arma::vec mvrnormArma(arma::vec& mu, arma::mat& sigma) {
    int ncols = sigma.n_cols;
    arma::vec epsilon = arma::randn(ncols);
-   return mu + arma::chol(sigma, "lower") * epsilon;
+   std::cout << "Sigma is symmetric? " << sigma.is_symmetric() << std::endl; 
+   mat R;
+   umat P;
+   chol(R, P, sigma, "lower", "matrix");
+   return mu + R * epsilon;
 }
 
 class BayesShrinkageGPReg{
@@ -164,10 +168,10 @@ class BayesShrinkageGPReg{
             vec prior_means = zeros(dat.n);
 
             paras.f_val.zeros(dat.n, dat.p);    
-            for(int i=0; i<dat.p; i++){
-                mat covar_mat = dat.K.slice(i) / paras.inv_sigma_sq;
-                paras.f_val.col(i) = mvrnormArma(prior_means, covar_mat);
-            }
+            // for(int i=0; i<dat.p; i++){
+            //     mat covar_mat = dat.K.slice(i) / paras.inv_sigma_sq;
+            //     paras.f_val.col(i) = mvrnormArma(prior_means, covar_mat);
+            // }
 
         };
 
@@ -247,9 +251,10 @@ class BayesShrinkageGPReg{
                 if (paras.delta(i) == 1){
                     continue;
                 }
-                vec prior_mean = zeros(dat.n);
-                mat covar_mat = dat.K.slice(i) / paras.inv_sigma_sq;
-                paras.f_val.col(i) = mvrnormArma(prior_mean, covar_mat);
+                mat V_i = dat.V.slice(i);
+                vec sqrt_D_i = sqrt(dat.D.col(i));
+                vec rho = randn(size(sqrt_D_i));
+                paras.f_val.col(i) = 1.0 / sqrt(paras.inv_sigma_sq) * V_i * (sqrt_D_i % rho);
             }
         }
 
@@ -519,9 +524,6 @@ arma::mat GPpredict(mat& train_x, mat& sample_f_x, mat& test_x, double sigma2){
         }
 
         mat inv_kernel_train_train = inv_sympd(kernel_train_train);
-        //std::cout << "train kernel " << i << ": " << inv_kernel_train_train.is_sympd() << std::endl;
-
-
         // calculate the kernel for test data
         for (int j=0; j<test_n; j++){
             double x1 = test_vec(j);

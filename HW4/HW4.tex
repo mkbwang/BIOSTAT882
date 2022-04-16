@@ -87,7 +87,7 @@ I am using gibbs sampler to finish this problem.
 		\For {$j \gets 1$ to $p$}
 			\State $K_{j} \gets \kappa (\text{dist}(\bm{x}_{j}))$ \Comment{Calculate kernel matrix for each pixel}
 			\State $V_{j}, D_{j} \gets \text{eig}(K_{j})$ \Comment{Eigen Decomposition}
-			\State $f_{j}(\bm{x}_{j}) \sim \mathcal{N}(\bm{0}, \sigma^2 K_{j})$\Comment{Generate function value for each pixel across samples}
+			\State $f_{j}(\bm{x}_{j}) \gets \bm{0}$\Comment{Generate function value for each pixel across samples}
 			\State $\delta_{j} \sim \text{Bernoulli}(\pi)$
 		\EndFor
 		\For {$m \gets 0$ to $M-1$} \Comment{Gibbs Sampling}
