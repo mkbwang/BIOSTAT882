@@ -22,7 +22,7 @@ arma::vec probit(arma::vec& y, bool islower=true, bool takelog=false) {
   return probs;
 }
 
-double kernel(double x1, double x2, double ell=4){
+double kernel(double x1, double x2, double ell=1){
     // simple matern kernel
     double value = exp(-abs(x1-x2) / ell);
     return value;   
@@ -48,10 +48,8 @@ arma::vec tnorm(arma::vec& x, arma::vec& y){
 arma::vec mvrnormArma(arma::vec& mu, arma::mat& sigma) {
    int ncols = sigma.n_cols;
    arma::vec epsilon = arma::randn(ncols);
-   std::cout << "Sigma is symmetric? " << sigma.is_symmetric() << std::endl; 
-   mat R;
-   umat P;
-   chol(R, P, sigma, "lower", "matrix");
+   // std::cout << "Sigma is symmetric? " << sigma.is_symmetric() << std::endl; 
+   mat R = chol(sigma, "lower");
    return mu + R * epsilon;
 }
 
@@ -62,6 +60,9 @@ class BayesShrinkageGPReg{
             int p; // number of covariates
             vec y; // binary outcome
             mat X; // covariate matrix
+            vec num_unique_X; // number of unique numbers for each covariate
+            mat uniq_X; // unique values for each covariate
+            mat uniq_count_X; // counts for different unique values in each covariate
             cube K; // kernel matrices for each covariate
             cube V; // eigen vectors for each kernel matrix
             mat D; // eigen values for each kernel matrix
@@ -120,33 +121,44 @@ class BayesShrinkageGPReg{
             dat.K.zeros(dat.n, dat.n, dat.p);
             dat.V.zeros(dat.n, dat.n, dat.p);
             dat.D.zeros(dat.n, dat.p);
+            dat.num_unique_X.zeros(dat.p);
+            dat.uniq_count_X.zeros(dat.n, dat.p);
+            dat.uniq_X.zeros(dat.n, dat.p);
 
             for (int i=0; i<dat.p; i++){
+                vec selected_col = dat.X.col(i);    
+                vec temp_unique_X = unique(selected_col);
+                int temp_n = temp_unique_X.n_elem; // number of unique numbers in the current column
+                dat.num_unique_X(i) = temp_n;
+                dat.uniq_X(span(0, temp_n - 1), i) = temp_unique_X; // unique values of X
+                for (int j=0; j<temp_n; j++){
+                    uvec indices = find(selected_col == temp_unique_X(j));
+                    dat.uniq_count_X(j, i) = indices.n_elem; // counts for different X values
+                }
                 mat temp_K;
-                temp_K.zeros(dat.n, dat.n);
+                temp_K.zeros(temp_n, temp_n);
                 mat temp_V;
-                temp_V.zeros(dat.n, dat.n);    
+                temp_V.zeros(temp_n, temp_n);    
                 vec temp_D;
-                temp_D.zeros(dat.n);
-
-                for (int j=0; j<dat.n; j++){ // off diagonal terms of K
-                    double x1 = dat.X(j, i);
-                    for (int k=j+1; k<dat.n; k++){
-                        double x2 = dat.X(k, i);
+                temp_D.zeros(temp_n);
+                for (int j=0; j<temp_n; j++){ // off diagonal terms of K
+                    double x1 = temp_unique_X(j);
+                    for (int k=j+1; k<temp_n; k++){
+                        double x2 = temp_unique_X(k);
                         temp_K(j, k) = kernel(x1, x2);
                     }
                 }
 
                 temp_K = temp_K.t() + temp_K;
-                for(int j=0; j<dat.n; j++){ // diagonal terms of K
+                for(int j=0; j<temp_n; j++){ // diagonal terms of K
                     temp_K(j, j) = 1;
                 }
 
                 // eigen decomposition
                 bool success = eig_sym(temp_D, temp_V, temp_K);
-                dat.K.slice(i) = temp_K;
-                dat.D.col(i) = temp_D;
-                dat.V.slice(i) = temp_V;
+                dat.K.slice(i)(span(0, temp_n-1), span(0, temp_n-1)) = temp_K;
+                dat.D(span(0, temp_n-1), i) = temp_D;
+                dat.V.slice(i)(span(0, temp_n-1), span(0, temp_n-1)) = temp_V;
 
             }
             
@@ -160,12 +172,12 @@ class BayesShrinkageGPReg{
 
         void set_paras_initial_values(){
             
-            paras.inv_a = randg(distr_param(1.0/2, 1.0/hyperparas.inv_A_sq));
-            paras.inv_sigma_sq = randg(distr_param(1.0/2, 1.0/paras.inv_a));
-            paras.alpha = randn() / sqrt(paras.inv_sigma_sq);
-            vec intermediate = randu(dat.p);
-            paras.delta = conv_to<vec>::from(intermediate < ones(dat.p)*hyperparas.prob );
-            vec prior_means = zeros(dat.n);
+            paras.inv_a = 0.5 / hyperparas.inv_A_sq;
+            paras.inv_sigma_sq = 0.5 / paras.inv_a;
+            paras.alpha = 0;
+            // vec intermediate = randu(dat.p);
+            paras.delta = zeros(dat.p);
+            // vec prior_means = zeros(dat.n);
 
             paras.f_val.zeros(dat.n, dat.p);    
             // for(int i=0; i<dat.p; i++){
@@ -195,7 +207,8 @@ class BayesShrinkageGPReg{
 
         void update_z(){
             vec link = paras.f_val * paras.delta + paras.alpha; // link function value
-            paras.z = tnorm(link, dat.y);                
+            paras.z = tnorm(link, dat.y);
+            std::cout << "Min z: " << paras.z.min() << " Max z: " << paras.z.max() << std::endl;                
         };
 
         void update_selected_f(){
@@ -204,13 +217,29 @@ class BayesShrinkageGPReg{
                 if (paras.delta(i) == 0){
                     continue; // function not selected doesn't need to change here
                 }
-                vec D_i = dat.D.col(i);
+                int temp_num_unique = dat.num_unique_X(i); // number of unique values
+                vec temp_unique_X = dat.uniq_X(span(0, temp_num_unique-1), i); // unique values themselves
+                vec D_i = dat.D(span(0, temp_num_unique-1), i); // corresponding eigen values
                 vec inv_D_i = 1.0 / D_i;
-                vec intermediate = 1.0 / sqrt(paras.inv_sigma_sq * inv_D_i + 1.0);
+                vec intermediate = 1.0 / 
+                    sqrt(paras.inv_sigma_sq * inv_D_i + dat.uniq_count_X(span(0, temp_num_unique-1), i));
                 vec link = paras.f_val * paras.delta + paras.alpha;
                 vec observed_f_i = paras.z - link + paras.f_val.col(i);
-                vec rho = randn(size(observed_f_i));
-                paras.f_val.col(i) = dat.V.slice(i) * (intermediate % (rho + intermediate % observed_f_i));
+                
+                vec condensed_f_i = zeros(temp_num_unique); // average function value over the same X value
+                for (int j=0; j<temp_num_unique; j++){
+                    condensed_f_i(j) = mean(observed_f_i.elem(find(dat.X.col(i) == temp_unique_X(j))));
+                }
+                // std::cout << "Original Column " << i << " of selected columns min: " << condensed_f_i.min() << std::endl;
+                vec rho = randn(size(condensed_f_i));
+                mat temp_V = dat.V.slice(i)(span(0, temp_num_unique-1), span(0, temp_num_unique-1));
+                vec new_short_f_val = temp_V * (intermediate % (rho + intermediate % condensed_f_i));
+                vec new_long_f_val = zeros(dat.n);
+                for (int j=0; j<temp_num_unique; j++){
+                    new_long_f_val.elem(find(dat.X.col(i) == temp_unique_X(j))).fill(new_short_f_val(j));
+                }
+                std::cout << "New Column " << i << " of selected columns min: " << new_short_f_val.min() << std::endl;
+                paras.f_val.col(i) = new_long_f_val;
             }
         }
         
@@ -220,6 +249,7 @@ class BayesShrinkageGPReg{
             double var_alpha = 1.0/(dat.n + paras.inv_sigma_sq);
             double mean_alpha = var_alpha * accu(w);
             paras.alpha = mean_alpha + randn() * sqrt(var_alpha);
+            std::cout << "alpha" << paras.inv_sigma_sq << std::endl;
         }
 
         void update_inv_sigma_sq(){
@@ -234,14 +264,24 @@ class BayesShrinkageGPReg{
                 if (paras.delta(i) == 0){
                     continue;
                 }
-                gamma_a += dat.n / 2.0;
-                vec D_i = dat.D.col(i);
+                vec selected_col = dat.X.col(i);
+                int temp_num_unique = dat.num_unique_X(i); // number of unique values
+                vec temp_unique_X = dat.uniq_X(span(0, temp_num_unique-1), i); // unique values themselves
+                gamma_a += temp_num_unique / 2.0;
+                vec D_i = dat.D(span(0, temp_num_unique-1), i); // corresponding eigen values
                 vec inv_sqrt_D_i = 1.0 / sqrt(D_i);
-                mat V_i = dat.V.slice(i);
-                vec intermediate = inv_sqrt_D_i % (V_i.t() * paras.f_val.col(i));
+                mat V_i = dat.V.slice(i)(span(0, temp_num_unique-1), span(0, temp_num_unique-1));
+                vec short_f_val = zeros(temp_num_unique);
+                for (int j=0; j<temp_num_unique; j++){
+                    uvec position = find(selected_col == temp_unique_X(j));
+                    short_f_val(j) = paras.f_val(position(0), i);
+                }
+                vec intermediate = inv_sqrt_D_i % (V_i.t() * short_f_val);
                 gamma_b += accu(intermediate % intermediate) / 2.0;
             }
             paras.inv_sigma_sq = randg(distr_param(gamma_a, 1.0/gamma_b));
+            std::cout << "Mean of inverse sigma sq" << gamma_a / gamma_b << std::endl;
+            std::cout << "inverse sigma sq" << paras.inv_sigma_sq << std::endl;
         }
 
         void update_unselected_f(){
@@ -251,10 +291,19 @@ class BayesShrinkageGPReg{
                 if (paras.delta(i) == 1){
                     continue;
                 }
-                mat V_i = dat.V.slice(i);
-                vec sqrt_D_i = sqrt(dat.D.col(i));
+                vec selected_col = dat.X.col(i);
+                int temp_num_unique = dat.num_unique_X(i); // number of unique values
+                vec temp_unique_X = dat.uniq_X(span(0, temp_num_unique-1), i); // unique values themselves
+                mat V_i = dat.V.slice(i)(span(0, temp_num_unique-1), span(0, temp_num_unique-1));
+                vec sqrt_D_i = sqrt(dat.D(span(0, temp_num_unique-1), i));
                 vec rho = randn(size(sqrt_D_i));
-                paras.f_val.col(i) = 1.0 / sqrt(paras.inv_sigma_sq) * V_i * (sqrt_D_i % rho);
+                vec new_short_f_val = 1.0 / sqrt(paras.inv_sigma_sq) * V_i * (sqrt_D_i % rho);
+                vec new_long_f_val = zeros(dat.n);
+                for (int j=0; j<temp_num_unique; j++){
+                    new_long_f_val.elem(find(dat.X.col(i) == temp_unique_X(j))).fill(new_short_f_val(j));
+                }
+                std::cout << "Column " << i << " of unselected columns min: " << new_long_f_val.min() << std::endl;
+                paras.f_val.col(i) = new_long_f_val;
             }
         }
 
@@ -263,6 +312,7 @@ class BayesShrinkageGPReg{
             double new_gamma_a = 1;
             double new_gamma_b = paras.inv_sigma_sq + hyperparas.inv_A_sq;
             paras.inv_a = randg(distr_param(new_gamma_a, 1.0/new_gamma_b));
+            std::cout << "inverse a" << paras.inv_a << std::endl;
         }
 
         void update_delta(){
@@ -282,14 +332,16 @@ class BayesShrinkageGPReg{
 
                 double post_logit = accu(log(liks_on)) + log(hyperparas.prob) - log(1.0 - hyperparas.prob) -
                         accu(log(liks_off));
-                
+                std::cout << "Posterior Logit: "<< post_logit << std::endl;
                 double post_prob = 1.0 / (1.0 + exp(-post_logit));
                 paras.delta(i) = (randu() < post_prob)? 1 : 0;
             }
+            std::cout << "Number of selected columns: "<< accu(paras.delta) << std::endl;
         }
 
         void update_loglik(){
             vec link = paras.f_val * paras.delta + paras.alpha;
+            std::cout << "Smallest link val: " << link.min() << std::endl;
             vec probs = probit(link); // probability for all observations
             vec liks = abs(1 - dat.y - probs);
             paras.loglik = accu(log(liks));
@@ -299,21 +351,30 @@ class BayesShrinkageGPReg{
             paras.logpost = paras.loglik;
             double gpkernel = 0;
             for (int i=0; i<dat.p; i++){
-                vec D_i = dat.D.col(i);
+                vec selected_col = dat.X.col(i);
+                int temp_num_unique = dat.num_unique_X(i); // number of unique values
+                vec temp_unique_X = dat.uniq_X(span(0, temp_num_unique-1), i); // unique values themselves
+                vec D_i = dat.D(span(0, temp_num_unique-1), i); // corresponding eigen values
                 vec inv_sqrt_D_i = 1.0 / sqrt(D_i);
-                mat V_i = dat.V.slice(i);
-                vec intermediate = inv_sqrt_D_i % (V_i.t() * paras.f_val.col(i));
+                vec short_f_val = zeros(temp_num_unique);
+                for (int j=0; j<temp_num_unique; j++){
+                    uvec position = find(selected_col == temp_unique_X(j));
+                    short_f_val(j) = paras.f_val(position(0), i);
+                }
+                mat V_i = dat.V.slice(i)(span(0, temp_num_unique-1), span(0, temp_num_unique-1));
+                vec intermediate = inv_sqrt_D_i % (V_i.t() * short_f_val);
                 gpkernel -= accu(intermediate % intermediate) / 2;
+                gpkernel += temp_num_unique / 2.0 * log(paras.inv_sigma_sq);
             }
             // log prior of all the function values(GP)
-            paras.logpost += gpkernel + dat.n * dat.p / 2 * log(paras.inv_sigma_sq);
+            paras.logpost += gpkernel;
             // log prior of all the deltas(bernoulli)
             paras.logpost += accu(log(abs(1.0 - paras.delta - hyperparas.prob)));
             // log prior of alpha(normal)
             paras.logpost += 0.5 * log(paras.inv_sigma_sq) - paras.inv_sigma_sq * paras.alpha * paras.alpha / 2;
             // log prior of inv sigma square(half cauchy, aka multilevel inverse gamma)
             paras.logpost += -0.5 * log(paras.inv_sigma_sq) - paras.inv_a * (paras.inv_sigma_sq + hyperparas.inv_A_sq);
-        }
+        };
 
         // traces of parameters and likelihoods
 
