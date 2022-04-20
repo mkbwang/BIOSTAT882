@@ -208,7 +208,7 @@ class BayesShrinkageGPReg{
         void update_z(){
             vec link = paras.f_val * paras.delta + paras.alpha; // link function value
             paras.z = tnorm(link, dat.y);
-            std::cout << "Min z: " << paras.z.min() << " Max z: " << paras.z.max() << std::endl;                
+            // std::cout << "Min z: " << paras.z.min() << " Max z: " << paras.z.max() << std::endl;                
         };
 
         void update_selected_f(){
@@ -238,9 +238,10 @@ class BayesShrinkageGPReg{
                 for (int j=0; j<temp_num_unique; j++){
                     new_long_f_val.elem(find(dat.X.col(i) == temp_unique_X(j))).fill(new_short_f_val(j));
                 }
-                std::cout << "New Column " << i << " of selected columns min: " << new_short_f_val.min() << std::endl;
                 paras.f_val.col(i) = new_long_f_val;
             }
+            // std::cout << "Smallest entry after updating unselected values: " << paras.f_val.min() << std::endl;
+            // std::cout << "Largest entry after updating unselected values: " << paras.f_val.max() << std::endl;
         }
         
         void update_alpha(){
@@ -249,7 +250,7 @@ class BayesShrinkageGPReg{
             double var_alpha = 1.0/(dat.n + paras.inv_sigma_sq);
             double mean_alpha = var_alpha * accu(w);
             paras.alpha = mean_alpha + randn() * sqrt(var_alpha);
-            std::cout << "alpha" << paras.inv_sigma_sq << std::endl;
+            // std::cout << "alpha " << paras.inv_sigma_sq << std::endl;
         }
 
         void update_inv_sigma_sq(){
@@ -280,8 +281,8 @@ class BayesShrinkageGPReg{
                 gamma_b += accu(intermediate % intermediate) / 2.0;
             }
             paras.inv_sigma_sq = randg(distr_param(gamma_a, 1.0/gamma_b));
-            std::cout << "Mean of inverse sigma sq" << gamma_a / gamma_b << std::endl;
-            std::cout << "inverse sigma sq" << paras.inv_sigma_sq << std::endl;
+            // std::cout << "Mean of inverse sigma sq " << gamma_a / gamma_b << std::endl;
+            // std::cout << "inverse sigma sq " << paras.inv_sigma_sq << std::endl;
         }
 
         void update_unselected_f(){
@@ -302,9 +303,11 @@ class BayesShrinkageGPReg{
                 for (int j=0; j<temp_num_unique; j++){
                     new_long_f_val.elem(find(dat.X.col(i) == temp_unique_X(j))).fill(new_short_f_val(j));
                 }
-                std::cout << "Column " << i << " of unselected columns min: " << new_long_f_val.min() << std::endl;
+                
                 paras.f_val.col(i) = new_long_f_val;
             }
+            // std::cout << "Smallest entry after updating selected values: " << paras.f_val.min() << std::endl;
+            // std::cout << "Largest entry after updating selected values: " << paras.f_val.max() << std::endl;
         }
 
         void update_inv_a(){
@@ -312,7 +315,7 @@ class BayesShrinkageGPReg{
             double new_gamma_a = 1;
             double new_gamma_b = paras.inv_sigma_sq + hyperparas.inv_A_sq;
             paras.inv_a = randg(distr_param(new_gamma_a, 1.0/new_gamma_b));
-            std::cout << "inverse a" << paras.inv_a << std::endl;
+            // std::cout << "inverse a " << paras.inv_a << std::endl;
         }
 
         void update_delta(){
@@ -322,13 +325,38 @@ class BayesShrinkageGPReg{
                 // get the probability when the pixel of interest is not selected
                 temp_delta(i) = 0;
                 vec link_off = paras.f_val * temp_delta + paras.alpha;
+                // vec prediction_off = zeros(dat.y.n_elem);
+                // for (int j=0; j<dat.n; j++){
+                //     prediction_off(j) = (link_off(j) >= 0)? 1: 0;
+                // }
+                // double accuracy_off = mean(prediction_off == dat.y); 
                 vec probs_off = probit(link_off); // probabilities
+                
                 vec liks_off = abs(1.0 - dat.y - probs_off);
+                std::cout << "Smallest likelihood when off: "<< liks_off.min() << std::endl;
+                std::cout << "Largest likelihood when off: "<< liks_off.max() << std::endl;
                 // get the probability when the pixel of interest is selected
                 temp_delta(i) = 1;
                 vec link_on = paras.f_val * temp_delta + paras.alpha;
+                // vec prediction_on = zeros(dat.y.n_elem);
+                // for (int j=0; j<dat.n; j++){
+                //     prediction_on(j) = (link_on(j) >= 0)? 1: 0;
+                // }
+                // double accuracy_on = mean(prediction_on == dat.y);
                 vec probs_on = probit(link_on); // probabilities
                 vec liks_on = abs(1.0 - dat.y - probs_on);
+                std::cout << "Smallest likelihood when on: "<< liks_on.min() << std::endl;
+                std::cout << "Largest likelihood when on: "<< liks_on.max() << std::endl;
+                // if (accuracy_on == 0 && accuracy_off == 0){
+                //     paras.delta(i) = (randu() < hyperparas.prob)? 1 : 0;
+                // } else if (accuracy_on > 0 && accuracy_off == 0)
+                // {
+                //     paras.delta(i) = 1;
+                // } else {
+                //     double post_odds = accuracy_on / accuracy_off * hyperparas.prob/(1-hyperparas.prob);
+                //     double post_prob = post_odds / (post_odds + 1);
+                //     paras.delta(i) = (randu() < post_prob)? 1 : 0;
+                // }
 
                 double post_logit = accu(log(liks_on)) + log(hyperparas.prob) - log(1.0 - hyperparas.prob) -
                         accu(log(liks_off));
@@ -336,7 +364,7 @@ class BayesShrinkageGPReg{
                 double post_prob = 1.0 / (1.0 + exp(-post_logit));
                 paras.delta(i) = (randu() < post_prob)? 1 : 0;
             }
-            std::cout << "Number of selected columns: "<< accu(paras.delta) << std::endl;
+            // std::cout << "Number of selected columns: "<< accu(paras.delta) << std::endl;
         }
 
         void update_loglik(){
